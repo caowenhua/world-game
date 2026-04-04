@@ -1,0 +1,35 @@
+# Binaries
+bin/
+*.exe
+
+# Node
+node_modules/
+web/node_modules/
+web/out/
+web/.next/
+web/package-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+web/dist/
+
+# Temp
+tmp/
+temp/
