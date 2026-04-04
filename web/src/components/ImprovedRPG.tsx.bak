@@ -554,6 +554,7 @@ function getCardsFromDealer(dealer: Dealer): EventCard[] {
 function drawRandomCardFromDealer(dealer: Dealer): EventCard | null {
   const cards = getCardsFromDealer(dealer);
   if (cards.length === 0) return null;
+  // 稀有度权重：越高越难抽到
   const weights = cards.map(c => 6 - c.rarity);
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   let random = Math.random() * totalWeight;
@@ -661,7 +662,7 @@ export default function ImprovedRPG() {
     energy: 3, maxEnergy: 5, level: 1, exp: 0, expToLevel: 100, atk: 25, def: 10,
     facing: 'down' as 'up' | 'down' | 'left' | 'right',
     isAttacking: false, attackFrame: 0, cooldown: 0, invincible: 0, atkBuff: 0,
-    gold: 0,
+    gold: 0, // 黄金法则1：金币系统
   });
 
   const [camera, setCamera] = useState({ x: 30, y: 28 });
@@ -685,6 +686,9 @@ export default function ImprovedRPG() {
     { id: 2, x: 65, y: 15, opened: false },
     { id: 3, x: 70, y: 35, opened: false },
   ]);
+
+  // 原NPC整合到DEALERS系统
+  const npcs = DEALERS.filter(d => d.type === 'NPC');
 
   const [damages, setDamages] = useState<{ id: number; x: number; y: number; v: number; t: number; color: string }[]>([]);
   const dmgIdRef = useRef(0);
@@ -781,6 +785,7 @@ export default function ImprovedRPG() {
       if (dx <= 1.5 && dy <= 1.5) return dealer;
     }
     return null;
+    return null;
   }, [player]);
 
   const checkInteraction = useCallback(() => {
@@ -810,6 +815,9 @@ export default function ImprovedRPG() {
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
   }, [player, attack, dodge, nearbyDealer]);
 
+  const interactionHint = checkInteraction();
+  const inSafeZone = player.x >= 32 && player.x <= 48 && player.y >= 28 && player.y <= 44;
+
   // 更新附近发牌员状态
   useEffect(() => {
     if (gameState === 'playing') {
@@ -817,9 +825,6 @@ export default function ImprovedRPG() {
       setNearbyDealer(dealer);
     }
   }, [player, gameState, checkDealerInteraction]);
-
-  const interactionHint = checkInteraction();
-  const inSafeZone = player.x >= 32 && player.x <= 48 && player.y >= 28 && player.y <= 44;
 
   // 游戏主循环
   useEffect(() => {
@@ -1279,228 +1284,4 @@ export default function ImprovedRPG() {
           <div className="flex gap-1 mb-4 justify-center">
             {STORY_LINES.map((_, i) => <div key={i} className={`w-2 h-2 rounded-full ${i === storyIdx ? 'bg-amber-400' : i < storyIdx ? 'bg-green-500' : 'bg-slate-600'}`} />)}
           </div>
-          <button onClick={() => { if (storyIdx < STORY_LINES.length - 1) setStoryIdx(storyIdx + 1); else setGameState('playing'); }}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition-colors">
-            {storyIdx < STORY_LINES.length - 1 ? (typingDone ? '继续 →' : '跳过') : '开始冒险！'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 游戏结束
-  if (gameState === 'gameover') {
-    return (
-      <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold text-red-500 mb-4">💀 游戏结束</h1>
-        <p className="text-slate-300 mb-8">你被怪物击败了...</p>
-        <button onClick={() => { setPlayer(p => ({ ...p, x: 40, y: 36, hp: 100, mp: 50, energy: 3 })); setMonsters(m => m.map(x => ({ ...x, hp: x.maxHp, state: 'patrol' }))); setGameState('playing'); }}
-          className="px-8 py-3 bg-amber-600 text-white rounded-xl font-bold">重新开始</button>
-      </div>
-    );
-  }
-
-  // 事件卡奖励弹窗
-  if (showRewards && cardRewards.length > 0) {
-    const card = cardRewards[0];
-    const rarityColor = RARITY_COLORS[card.rarity];
-    return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-b from-yellow-900 to-slate-900 rounded-2xl p-8 border-2 shadow-2xl max-w-sm w-full mx-4 text-center" style={{ borderColor: rarityColor }}>
-          <div className="text-4xl mb-4">🎉</div>
-          <h2 className="text-xl font-bold text-yellow-400 mb-2">获得事件卡！</h2>
-          <div style={{ borderColor: rarityColor, borderWidth: 2, borderRadius: 12, padding: 16, background: '#1a1a2e', marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 20 }}>
-                {CARD_TYPE_ICONS[card.type]}
-              </span>
-              <span style={{ color: rarityColor, fontSize: 16 }}>{RARITY_NAMES[card.rarity]}</span>
-            </div>
-            <div style={{ color: 'white', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{card.name}</div>
-            <div style={{ color: '#9CA3AF', fontSize: 12, lineHeight: 1.5, marginBottom: 8 }}>{card.description}</div>
-            {card.cost && <div style={{ color: '#F97316', fontSize: 11, marginBottom: 4 }}>💎 成本：{card.cost}</div>}
-            {card.storyContent && <div style={{ color: '#A78BFA', fontSize: 11, fontStyle: 'italic', marginBottom: 4 }}>📖 {card.storyContent}</div>}
-            {card.effect && <div style={{ color: '#4ADE80', fontSize: 11 }}>⚡ 效果：{card.effect}</div>}
-          </div>
-          <button
-            onClick={() => {
-              setCollectedCards(prev => [...prev, card]);
-              setShowRewards(false);
-              setCardRewards([]);
-            }}
-            className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl font-bold">
-            收入卡组
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 发牌员卡牌界面
-  if (showCardGame) {
-    const filteredCards = cardFilter === 'all' ? collectedCards : collectedCards.filter(c => c.type === cardFilter);
-    const filterButtons: Array<{ key: CardType | 'all'; label: string }> = [
-      { key: 'all', label: '全部' },
-      { key: 'MAIN_STORY', label: '📜主线' },
-      { key: 'SIDE_STORY', label: '📖支线' },
-      { key: 'MECHANISM', label: '⚔️机制' },
-      { key: 'STAT_UP', label: '📈数值' },
-      { key: 'EMOTION', label: '💕情感' },
-      { key: 'MOOD', label: '🌙情绪' },
-      { key: 'ECONOMY', label: '💰经济' },
-      { key: 'EMPTY', label: '💨空白' },
-    ];
-    return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-purple-500 shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
-          <h2 className="text-2xl font-bold text-purple-400 mb-2 text-center">🃏 事件卡收藏</h2>
-          {nearbyDealer && (
-            <p className="text-slate-400 text-sm text-center mb-2">
-              发牌员：{nearbyDealer.name} ({DEALER_TYPE_NAMES[nearbyDealer.type]})
-            </p>
-          )}
-          <p className="text-slate-500 text-xs text-center mb-3">卡牌是剧情的碎片 — 收集它们来推进世界</p>
-
-          {/* 过滤器 */}
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {filterButtons.map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setCardFilter(btn.key)}
-                className={`px-3 py-1 rounded-lg text-sm font-bold transition-colors ${cardFilter === btn.key ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 卡牌列表 */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {filteredCards.length === 0 ? (
-              <div className="text-center text-slate-500 py-8">
-                <div className="text-4xl mb-2">🃏</div>
-                <p>还没有收集到这类卡牌</p>
-                <p className="text-xs mt-1">靠近发牌员或击败怪物可获得事件卡</p>
-              </div>
-            ) : (
-              filteredCards.map(card => renderEventCard(card))
-            )}
-          </div>
-
-          {/* 全卡展示入口 */}
-          <div className="mt-4 pt-4 border-t border-slate-700">
-            <p className="text-slate-400 text-xs text-center mb-2">已收集 {collectedCards.length} / {ALL_EVENT_CARDS.length} 张卡牌</p>
-            <div className="grid grid-cols-8 gap-1 mb-3">
-              {ALL_EVENT_CARDS.map(c => {
-                const owned = collectedCards.some(x => x.id === c.id);
-                return (
-                  <div key={c.id} style={{
-                    width: 32, height: 32, borderRadius: 4,
-                    background: owned ? '#1a1a2e' : '#0a0a0f',
-                    border: `1px solid ${RARITY_COLORS[c.rarity]}`,
-                    opacity: owned ? 1 : 0.3,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14,
-                  }}>
-                    {CARD_TYPE_ICONS[c.type]}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <button onClick={() => setShowCardGame(false)} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold mt-2">返回游戏</button>
-        </div>
-      </div>
-    );
-  }
-
-  // ===================== 游戏主界面 =====================
-  return (
-    <div className="fixed inset-0 bg-black flex flex-col">
-      {/* 顶部状态栏 */}
-      <div className="h-14 bg-slate-900/90 border-b border-slate-700 flex items-center px-4 gap-6 z-10">
-        <div className="flex items-center gap-2"><span className="text-yellow-400">👤</span><span className="text-white font-bold">{player.level}级</span></div>
-        <div className="flex-1 max-w-[200px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>HP</span><span>{player.hp}/{player.maxHp}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-green-500 transition-all" style={{ width: `${player.hp / player.maxHp * 100}%` }} /></div>
-        </div>
-        <div className="flex-1 max-w-[150px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>MP</span><span>{player.mp}/{player.maxMp}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all" style={{ width: `${player.mp / player.maxMp * 100}%` }} /></div>
-        </div>
-        <div className="flex-1 max-w-[150px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>能量</span><span>{player.energy}/{player.maxEnergy}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all" style={{ width: `${player.energy / player.maxEnergy * 100}%` }} /></div>
-        </div>
-        <div className="text-slate-400 text-sm">💰 {player.gold}</div>
-        <div className="text-slate-400 text-sm">EXP: {player.exp}/{player.expToLevel}</div>
-        <div className="text-slate-400 text-sm">🃏 {collectedCards.length}</div>
-      </div>
-
-      {/* 地图画布 */}
-      <div className="flex-1 relative overflow-hidden" ref={containerRef}>
-        <canvas ref={canvasRef} width={dimensions.width} height={dimensions.height} className="w-full h-full" />
-
-        {/* 虚拟摇杆 */}
-        <div className="absolute bottom-20 left-4 flex flex-col items-center gap-1">
-          <button className="w-12 h-12 bg-slate-800/80 rounded-lg flex items-center justify-center text-white text-xl border border-slate-600 active:bg-slate-700"
-            onTouchStart={() => keysRef.current.add('w')} onTouchEnd={() => keysRef.current.delete('w')}
-            onMouseDown={() => keysRef.current.add('w')} onMouseUp={() => keysRef.current.delete('w')} onMouseLeave={() => keysRef.current.delete('w')}>↑</button>
-          <div className="flex gap-1">
-            <button className="w-12 h-12 bg-slate-800/80 rounded-lg flex items-center justify-center text-white text-xl border border-slate-600 active:bg-slate-700"
-              onTouchStart={() => keysRef.current.add('a')} onTouchEnd={() => keysRef.current.delete('a')}
-              onMouseDown={() => keysRef.current.add('a')} onMouseUp={() => keysRef.current.delete('a')} onMouseLeave={() => keysRef.current.delete('a')}>←</button>
-            <button className="w-12 h-12 bg-slate-800/80 rounded-lg flex items-center justify-center text-white text-xl border border-slate-600 active:bg-slate-700"
-              onTouchStart={() => keysRef.current.add('s')} onTouchEnd={() => keysRef.current.delete('s')}
-              onMouseDown={() => keysRef.current.add('s')} onMouseUp={() => keysRef.current.delete('s')} onMouseLeave={() => keysRef.current.delete('s')}>↓</button>
-            <button className="w-12 h-12 bg-slate-800/80 rounded-lg flex items-center justify-center text-white text-xl border border-slate-600 active:bg-slate-700"
-              onTouchStart={() => keysRef.current.add('d')} onTouchEnd={() => keysRef.current.delete('d')}
-              onMouseDown={() => keysRef.current.add('d')} onMouseUp={() => keysRef.current.delete('d')} onMouseLeave={() => keysRef.current.delete('d')}>→</button>
-          </div>
-        </div>
-
-        {/* 技能按钮 */}
-        <div className="absolute bottom-20 right-4 flex flex-col gap-2">
-          <button onClick={attack} disabled={player.cooldown > 0}
-            className="w-16 h-16 bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform">
-            <span className="text-xl">⚔️</span><span className="text-[10px]">J攻击</span>
-          </button>
-          <button onClick={dodge}
-            className="w-16 h-16 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform">
-            <span className="text-xl">💨</span><span className="text-[10px]">空格闪避</span>
-          </button>
-        </div>
-
-        {/* 安全区提示 */}
-        {inSafeZone && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-yellow-600/90 px-4 py-1 rounded-full text-white text-xs font-bold flex items-center gap-2">
-            <span>🏰</span> 安全区域
-          </div>
-        )}
-
-        {/* 发牌员交互提示 */}
-        {nearbyDealer && (
-          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-purple-600/90 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2">
-            <span>{nearbyDealer.icon}</span> {nearbyDealer.name} - 按 E 查看{CARD_TYPE_NAMES[nearbyDealer.supportedCardTypes[0]]}卡
-          </div>
-        )}
-
-        {/* 宝箱交互提示 */}
-        {interactionHint && interactionHint.startsWith('treasure_') && (
-          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-yellow-600/90 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2">
-            <span>📦</span> 开启宝箱
-          </div>
-        )}
-      </div>
-
-      {/* 底部提示 */}
-      <div className="h-10 bg-slate-900/90 border-t border-slate-700 flex items-center justify-center gap-8 text-slate-400 text-xs">
-        <span>🎮 WASD/方向键移动</span>
-        <span>⚔️ J攻击 空格闪避</span>
-        <span>🏰 城镇内无怪物</span>
-        <span>🃏 靠近发牌员按E</span>
-      </div>
-    </div>
-  );
-}
+          <button onClick={() => { if (storyIdx < STORY_LINES.length - 1) setStoryIdx(storyIdx +
