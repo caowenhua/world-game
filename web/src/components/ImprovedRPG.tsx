@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // ============================================================
-//  Pokemon像素风RPG游戏 - 完全重写版
+//  Pokemon像素风RPG游戏 - 剧情卡牌版
+//  核心理念：卡牌是剧情的碎片，推进世界用的
 // ============================================================
 
 const TILE_SIZE = 32;
@@ -22,34 +23,276 @@ const COLORS: Record<string, string> = {
 
 const TERRAIN = { GRASS: 0, PATH: 1, WALL: 2, WATER: 3, TREE: 4, BUILDING: 5, BRIDGE: 6, FLOWER: 7 };
 
-interface CardEffect {
-  type: 'damage' | 'aoe_damage' | 'heal' | 'shield' | 'buff_atk' | 'debuff';
-  value?: number;
-  element?: 'fire' | 'ice' | 'thunder' | 'wind' | 'dark' | 'light';
+// ============================================================
+//  剧情卡牌系统 - 4大类型
+// ============================================================
+
+interface StoryCard {
+  id: string;
+  name: string;
+  type: 'character' | 'story' | 'chapter' | 'fragment';
+  rarity: 1 | 2 | 3 | 4 | 5;
+  owner?: string;
+  description: string;
+  storyEffect: string;
+  imageColor: string;
 }
 
-interface Card {
-  id: string; name: string; type: 'character' | 'skill' | 'item' | 'story';
-  rarity: 1 | 2 | 3 | 4 | 5; description: string; effects: CardEffect[]; energyCost: number;
-}
+const RARITY_COLORS: Record<number, string> = {
+  1: '#9CA3AF',
+  2: '#22C55E',
+  3: '#3B82F6',
+  4: '#A855F7',
+  5: '#F59E0B',
+};
 
 const RARITY_NAMES: Record<number, string> = {
   1: '⭐', 2: '⭐⭐', 3: '⭐⭐⭐', 4: '⭐⭐⭐⭐', 5: '⭐⭐⭐⭐⭐',
 };
 
-const ALL_CARDS: Card[] = [
-  { id: 'basic_attack', name: '重击', type: 'skill', rarity: 1, description: '造成100%攻击力的伤害', effects: [{ type: 'damage', value: 100 }], energyCost: 1 },
-  { id: 'flame_burst', name: '火焰术', type: 'skill', rarity: 2, description: '对所有敌人造成80%火属性伤害', effects: [{ type: 'aoe_damage', element: 'fire', value: 80 }], energyCost: 2 },
-  { id: 'ice_shard', name: '冰碎片', type: 'skill', rarity: 2, description: '对单体造成120%冰属性伤害', effects: [{ type: 'damage', element: 'ice', value: 120 }], energyCost: 2 },
-  { id: 'thunder_bolt', name: '雷击', type: 'skill', rarity: 3, description: '对单体造成200%雷属性伤害', effects: [{ type: 'damage', element: 'thunder', value: 200 }], energyCost: 3 },
-  { id: 'heal_light', name: '圣光术', type: 'skill', rarity: 2, description: '恢复30%最大生命值', effects: [{ type: 'heal', value: 30 }], energyCost: 2 },
-  { id: 'wind_cut', name: '风刃', type: 'skill', rarity: 3, description: '对所有敌人造成100%风属性伤害', effects: [{ type: 'aoe_damage', element: 'wind', value: 100 }], energyCost: 2 },
-  { id: 'dark_arrow', name: '暗影箭', type: 'skill', rarity: 3, description: '造成150%暗属性伤害', effects: [{ type: 'damage', element: 'dark', value: 150 }], energyCost: 3 },
-  { id: 'shield_wall', name: '护盾', type: 'skill', rarity: 2, description: '获得50%最大生命值的护盾', effects: [{ type: 'shield', value: 50 }], energyCost: 2 },
-  { id: 'rage', name: '狂怒', type: 'skill', rarity: 3, description: '攻击力提升50%', effects: [{ type: 'buff_atk', value: 50 }], energyCost: 2 },
-  { id: 'poison_dart', name: '毒镖', type: 'skill', rarity: 2, description: '使敌人中毒', effects: [{ type: 'debuff', value: 10 }], energyCost: 2 },
-  { id: 'dragon_slayer', name: '屠龙斩', type: 'skill', rarity: 5, description: '对单体造成500%光属性伤害', effects: [{ type: 'damage', element: 'light', value: 500 }], energyCost: 5 },
-  { id: 'inferno', name: '地狱火', type: 'skill', rarity: 5, description: '对所有敌人造成300%火属性伤害', effects: [{ type: 'aoe_damage', element: 'fire', value: 300 }], energyCost: 5 },
+// ============================================================
+//  角色卡（Character Cards）
+// ============================================================
+const CHARACTER_CARDS: StoryCard[] = [
+  {
+    id: 'linye_juexingzhe',
+    name: '林夜·觉醒者',
+    type: 'character',
+    rarity: 4,
+    owner: '林夜',
+    description: '神秘的流浪剑客，体内流淌着初代觉醒者的血脉。眼神如深渊般幽暗，却藏着不为人知的力量。',
+    storyEffect: '解锁主角专属剧情线「觉醒者之血」',
+    imageColor: '#A855F7',
+  },
+  {
+    id: 'chenyue_laobing',
+    name: '陈岳·老兵',
+    type: 'character',
+    rarity: 3,
+    owner: '陈岳',
+    description: '沉默寡言的哨兵队长，曾是王国精锐。眼神锐利如刀，身上伤疤诉说着无数次战斗。',
+    storyEffect: '在战斗中加入「老兵战术」技能',
+    imageColor: '#3B82F6',
+  },
+  {
+    id: 'suwaner_yueyuzhe',
+    name: '苏婉儿·月语者',
+    type: 'character',
+    rarity: 4,
+    owner: '苏婉儿',
+    description: '能看见灵魂的少女，月光下她的眼眸泛着银色的光芒。母亲留下的月石项链是她最重要的遗物。',
+    storyEffect: '解锁支线「月石项链」与灵魂对话能力',
+    imageColor: '#E0E7FF',
+  },
+  {
+    id: 'heiying_shouling',
+    name: '黑影·影子首领',
+    type: 'character',
+    rarity: 5,
+    owner: '黑影',
+    description: '亦正亦邪的神秘人物，影子组织的首领。无人见过他的真面目，只有一双金色的眼眸在黑暗中闪烁。',
+    storyEffect: '解锁隐藏势力「影子组织」剧情线',
+    imageColor: '#1F2937',
+  },
+  {
+    id: 'laolieren_changren',
+    name: '老猎人·初代觉醒者徒弟',
+    type: 'character',
+    rarity: 4,
+    owner: '老猎人',
+    description: '初代的徒弟，如今已是苍老模样。他守护着虚渊的秘密，等待觉醒者再次出现。',
+    storyEffect: '获得「初代觉醒者遗书」触发资格',
+    imageColor: '#78350F',
+  },
+  {
+    id: 'tiemian_panguan',
+    name: '铁面·铁面判官',
+    type: 'character',
+    rarity: 4,
+    owner: '铁面',
+    description: '赏金猎人联盟的传奇人物，从不以真面目示人。银色铁面下是对正义的偏执追求。',
+    storyEffect: '解锁赏金猎人联盟势力',
+    imageColor: '#6B7280',
+  },
+];
+
+// ============================================================
+//  剧情卡（Story Cards）- 推进主线/支线
+// ============================================================
+const STORY_CARDS: StoryCard[] = [
+  {
+    id: 'qiannian_qiyue',
+    name: '「千年契约」',
+    type: 'story',
+    rarity: 5,
+    description: '揭示虚渊古神契约的真相。这份契约沉睡千年，等待觉醒者来揭开它的面纱。',
+    storyEffect: '解锁隐藏结局「命运的终结」',
+    imageColor: '#9333EA',
+  },
+  {
+    id: 'juexingzhe_zhi_xue',
+    name: '「觉醒者之血」',
+    type: 'story',
+    rarity: 4,
+    description: '林夜的真实身份——初代觉醒者的后裔。血脉中流淌的力量正在觉醒。',
+    storyEffect: '林夜攻击力永久+50%',
+    imageColor: '#DC2626',
+  },
+  {
+    id: 'chuji_juexingzhe_yishu',
+    name: '「初代觉醒者遗书」',
+    type: 'story',
+    rarity: 4,
+    description: '老猎人交给你的重要道具。泛黄的纸张上记录着初代觉醒者对虚渊的警告。',
+    storyEffect: '解锁主线剧情第二章',
+    imageColor: '#78350F',
+  },
+  {
+    id: 'heiying_qiyue',
+    name: '「影子契约」',
+    type: 'story',
+    rarity: 4,
+    description: '与影子组织做交易的凭证。签下这份契约，你将获得黑影的帮助，但也付出代价。',
+    storyEffect: '影子组织成为可信任盟友',
+    imageColor: '#1F2937',
+  },
+  {
+    id: 'yueshi_xianglian',
+    name: '「月石项链」',
+    type: 'story',
+    rarity: 3,
+    description: '苏婉儿母亲的遗物，银色的月石在月光下泛着幽幽的蓝光。能看见常人看不见的东西。',
+    storyEffect: '解锁苏婉儿专属剧情',
+    imageColor: '#E0E7FF',
+  },
+  {
+    id: 'canpo_de_mixin',
+    name: '「残破的密信」',
+    type: 'story',
+    rarity: 3,
+    description: '陈岳藏着的政变线索。信中提到王国高层正在酝酿一场惊天阴谋...',
+    storyEffect: '解锁隐藏支线「政变阴谋」',
+    imageColor: '#7C3AED',
+  },
+  {
+    id: 'shenmi_bulongling',
+    name: '「神秘赏金令」',
+    type: 'story',
+    rarity: 3,
+    description: '追杀令的真实目标竟然是自己。原来你早已被卷入一场跨国的追杀游戏中。',
+    storyEffect: '解锁赏金猎人联盟势力',
+    imageColor: '#B91C1C',
+  },
+  {
+    id: 'wangyan_yinji',
+    name: '「亡眼印记」',
+    type: 'story',
+    rarity: 3,
+    description: '虚渊势力的标记。被刻印者将被虚渊古神的力量所追踪。',
+    storyEffect: '虚渊追兵出现频率增加',
+    imageColor: '#7C3AED',
+  },
+];
+
+// ============================================================
+//  章节卡（Chapter Cards）- 解锁地图区域
+// ============================================================
+const CHAPTER_CARDS: StoryCard[] = [
+  {
+    id: 'shangdui_tiaocha',
+    name: '「商队调查」',
+    type: 'chapter',
+    rarity: 2,
+    description: '一支神秘商队在边境失踪，传闻与虚渊势力有关。',
+    storyEffect: '解锁第1章支线「失踪的商队」',
+    imageColor: '#22C55E',
+  },
+  {
+    id: 'miwu_shilian',
+    name: '「迷雾试炼」',
+    type: 'chapter',
+    rarity: 3,
+    description: '羊蹄山深处的迷雾中藏着古老的试炼，只有真正的觉醒者才能通过。',
+    storyEffect: '解锁第2章「迷雾之山」',
+    imageColor: '#6B7280',
+  },
+  {
+    id: 'wanghun_kuangdong',
+    name: '「亡魂矿洞」',
+    type: 'chapter',
+    rarity: 3,
+    description: '废弃的矿洞中游荡着无数亡魂，它们守护着某个不为人知的秘密。',
+    storyEffect: '解锁第3章「亡魂矿洞」',
+    imageColor: '#374151',
+  },
+  {
+    id: 'anliu_xiaozhen',
+    name: '「暗流小镇」',
+    type: 'chapter',
+    rarity: 3,
+    description: '表面平静的小镇，暗地里却是各方势力的交汇点。',
+    storyEffect: '解锁第4章「暗流涌动」',
+    imageColor: '#1E3A5F',
+  },
+  {
+    id: 'conglin_jiemei',
+    name: '「丛林姐妹」',
+    type: 'chapter',
+    rarity: 3,
+    description: '丛林深处的两个部落，千年来为守护某种力量而存在。',
+    storyEffect: '解锁第5章「丛林双族」',
+    imageColor: '#166534',
+  },
+  {
+    id: 'haizei_miyue',
+    name: '「海贼密约」',
+    type: 'chapter',
+    rarity: 4,
+    description: '海贼王与影子组织签订的秘密协议，涉及虚渊的某件神器。',
+    storyEffect: '解锁第6章「海贼王港」',
+    imageColor: '#1E40AF',
+  },
+];
+
+// ============================================================
+//  碎片卡（Fragment Cards）- 合成用
+// ============================================================
+const FRAGMENT_CARDS: StoryCard[] = [
+  {
+    id: 'anying_suipian',
+    name: '「暗影碎片」',
+    type: 'fragment',
+    rarity: 1,
+    description: '影子组织成员死亡后留下的碎片，蕴含着暗影的力量。收集3个可合成「黑影」。',
+    storyEffect: '×3 → 可合成「黑影」角色卡',
+    imageColor: '#1F2937',
+  },
+  {
+    id: 'longlin_suipian',
+    name: '「龙鳞碎片」',
+    type: 'fragment',
+    rarity: 1,
+    description: '远古巨龙的鳞片，闪耀着金色的光芒。收集3个可合成「古龙」。',
+    storyEffect: '×3 → 可合成「古龙」角色卡',
+    imageColor: '#F59E0B',
+  },
+  {
+    id: 'linghun_suipian',
+    name: '「灵魂碎片」',
+    type: 'fragment',
+    rarity: 1,
+    description: '游荡亡魂残留的灵魂精华。收集3个可合成「亡灵巫妖」。',
+    storyEffect: '×3 → 可合成「亡灵巫妖」角色卡',
+    imageColor: '#6366F1',
+  },
+];
+
+// 所有卡牌合并
+const ALL_STORY_CARDS: StoryCard[] = [
+  ...CHARACTER_CARDS,
+  ...STORY_CARDS,
+  ...CHAPTER_CARDS,
+  ...FRAGMENT_CARDS,
 ];
 
 const STORY_LINES = [
@@ -83,6 +326,42 @@ function createWorldMap(): number[][] {
     m.push(row);
   }
   return m;
+}
+
+// ============================================================
+//  卡牌渲染函数
+// ============================================================
+function renderCard(c: StoryCard, compact = false) {
+  const rarityColor = RARITY_COLORS[c.rarity];
+  const typeIcon = c.type === 'character' ? '👤' : c.type === 'story' ? '📜' : c.type === 'chapter' ? '🗺️' : '💎';
+  const typeName = c.type === 'character' ? '角色' : c.type === 'story' ? '剧情' : c.type === 'chapter' ? '章节' : '碎片';
+
+  if (compact) {
+    return (
+      <div key={c.id} style={{ borderColor: rarityColor, borderWidth: 1, borderRadius: 4, padding: 4, background: '#1a1a2e' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>{typeIcon}</span>
+          <span style={{ color: rarityColor, fontSize: 10 }}>{"⭐".repeat(c.rarity)}</span>
+        </div>
+        <div style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{c.name}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div key={c.id} style={{ borderColor: rarityColor, borderWidth: 2, borderRadius: 8, padding: 12, background: '#1a1a2e', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>{typeIcon}</span>
+          <span style={{ color: '#9CA3AF', fontSize: 10 }}>{typeName}</span>
+        </div>
+        <span style={{ color: rarityColor, fontSize: 11 }}>{"⭐".repeat(c.rarity)}</span>
+      </div>
+      <div style={{ color: 'white', fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>{c.name}</div>
+      <div style={{ color: '#9CA3AF', fontSize: 11, lineHeight: 1.4 }}>{c.description}</div>
+      <div style={{ color: '#F59E0B', fontSize: 10, marginTop: 6, paddingTop: 4, borderTop: '1px solid #333' }}>📖 {c.storyEffect}</div>
+    </div>
+  );
 }
 
 export default function ImprovedRPG() {
@@ -132,20 +411,13 @@ export default function ImprovedRPG() {
   const dmgIdRef = useRef(0);
 
   const [showCardGame, setShowCardGame] = useState(false);
-  const [hand, setHand] = useState<Card[]>(ALL_CARDS.slice(0, 3).map(c => ({ ...c })));
-  const [deck, setDeck] = useState<Card[]>(ALL_CARDS.slice(3));
-  const [cardRewards, setCardRewards] = useState<Card[]>([]);
+  const [cardRewards, setCardRewards] = useState<StoryCard[]>([]);
   const [showRewards, setShowRewards] = useState(false);
-  const [battleLog, setBattleLog] = useState<string[]>([]);
-  const [battleEnemyHp, setBattleEnemyHp] = useState({ hp: 0, maxHp: 0, name: '' });
-  const [battleState, setBattleState] = useState<'idle' | 'battle' | 'victory' | 'defeat'>('idle');
-  const [usedCardIndex, setUsedCardIndex] = useState<number | null>(null);
-  const [battleResult, setBattleResult] = useState<string>('');
+  const [collectedCards, setCollectedCards] = useState<StoryCard[]>([]);
+  const [cardFilter, setCardFilter] = useState<'all' | 'character' | 'story' | 'chapter' | 'fragment'>('all');
 
   const keysRef = useRef<Set<string>>(new Set());
   const mapDataRef = useRef<number[][]>(createWorldMap());
-  const battleTurnRef = useRef<'player' | 'enemy'>('player');
-  const battleLogRef = useRef<string[]>([]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -171,9 +443,12 @@ export default function ImprovedRPG() {
     setDamages(d => [...d, { id: dmgIdRef.current++, x, y, v, t: 60, color }]);
   }, []);
 
-  const dropCard = useCallback((isElite: boolean): Card | null => {
+  // 掉落剧情卡（代替技能卡）
+  const dropCard = useCallback((isElite: boolean): StoryCard | null => {
     if (Math.random() > (isElite ? 1.0 : 0.3)) return null;
-    const pool = isElite ? ALL_CARDS.filter(c => c.rarity >= 3) : ALL_CARDS.filter(c => c.rarity <= 3);
+    const pool = isElite
+      ? [...STORY_CARDS.filter(c => c.rarity >= 3), ...CHAPTER_CARDS.filter(c => c.rarity >= 3)]
+      : [...STORY_CARDS.filter(c => c.rarity <= 3), ...FRAGMENT_CARDS, ...CHAPTER_CARDS.filter(c => c.rarity <= 2)];
     return pool[Math.floor(Math.random() * pool.length)] || null;
   }, []);
 
@@ -190,7 +465,10 @@ export default function ImprovedRPG() {
         addDmg(m.x, m.y, atkVal, '#ffd93d');
         if (nh <= 0) {
           const card = dropCard(m.isElite || false);
-          if (card) { setCardRewards([card]); setShowRewards(true); }
+          if (card) {
+            setCardRewards([card]);
+            setShowRewards(true);
+          }
           setPlayer(p => ({ ...p, exp: p.exp + (m.isElite ? 50 : 10) }));
         }
         return { ...m, hp: nh, state: nh <= 0 ? 'dead' : m.state };
@@ -242,92 +520,6 @@ export default function ImprovedRPG() {
 
   const interactionHint = checkInteraction();
   const inSafeZone = player.x >= 32 && player.x <= 48 && player.y >= 28 && player.y <= 44;
-
-  // 卡牌游戏
-  const startCardBattle = (monsterName: string, monsterHp: number, monsterMaxHp: number) => {
-    setBattleEnemyHp({ hp: monsterHp, maxHp: monsterMaxHp, name: monsterName });
-    setBattleState('battle');
-    setBattleLog(['卡牌对战开始！']);
-    battleLogRef.current = ['卡牌对战开始！'];
-    battleTurnRef.current = 'player';
-    setUsedCardIndex(null);
-    setBattleResult('');
-  };
-
-  const playCard = (cardIndex: number) => {
-    const card = hand[cardIndex];
-    if (!card || player.energy < card.energyCost) return;
-    setUsedCardIndex(cardIndex);
-    const newEnergy = player.energy - card.energyCost;
-    setPlayer(p => ({ ...p, energy: newEnergy }));
-
-    let logMsg = `你使用了「${card.name}」！`;
-    const atkVal = Math.floor(player.atk * (1 + player.atkBuff / 100));
-    let newEnemyHp = battleEnemyHp.hp;
-    let newPlayerHp = player.hp;
-    let newPlayerMaxHp = player.maxHp;
-
-    for (const eff of card.effects) {
-      if (eff.type === 'damage') {
-        const dmg = Math.floor((eff.value || 100) / 100 * atkVal);
-        newEnemyHp = Math.max(0, newEnemyHp - dmg);
-        logMsg += ` 造成${dmg}点伤害！`;
-      } else if (eff.type === 'aoe_damage') {
-        const dmg = Math.floor((eff.value || 80) / 100 * atkVal);
-        newEnemyHp = Math.max(0, newEnemyHp - dmg);
-        logMsg += ` 对所有敌人造成${dmg}点${eff.element || ''}伤害！`;
-      } else if (eff.type === 'heal') {
-        const heal = Math.floor((eff.value || 30) / 100 * newPlayerMaxHp);
-        newPlayerHp = Math.min(newPlayerMaxHp, newPlayerHp + heal);
-        logMsg += ` 恢复了${heal}点生命！`;
-      }
-    }
-
-    setBattleEnemyHp(e => ({ ...e, hp: newEnemyHp }));
-    setPlayer(p => ({ ...p, hp: newPlayerHp, energy: newEnergy }));
-    const newLog = [...battleLogRef.current, logMsg];
-    battleLogRef.current = newLog;
-    setBattleLog([...newLog]);
-
-    if (newEnemyHp <= 0) {
-      setBattleState('victory');
-      setBattleResult('你赢了！');
-      const nh = hand.filter((_, i) => i !== cardIndex);
-      setHand(nh);
-      if (nh.length === 0) {
-        const newCards = deck.length > 0 ? [...deck] : ALL_CARDS.slice(0, 3).map(c => ({ ...c }));
-        setDeck([]);
-        setHand(newCards);
-      }
-      return;
-    }
-
-    battleTurnRef.current = 'enemy';
-    setTimeout(() => {
-      const enemyDmg = 10 + Math.floor(Math.random() * 10);
-      newPlayerHp = Math.max(0, newPlayerHp - enemyDmg);
-      const enemyLog = [`${battleEnemyHp.name}攻击你！ 造成${enemyDmg}点伤害！`];
-      battleLogRef.current = [...battleLogRef.current, ...enemyLog];
-      setBattleLog([...battleLogRef.current]);
-      setPlayer(p => ({ ...p, hp: newPlayerHp }));
-
-      if (newPlayerHp <= 0) {
-        setBattleState('defeat');
-        setBattleResult('你输了...');
-      } else {
-        battleTurnRef.current = 'player';
-        if (newEnergy < card.energyCost && deck.length > 0) {
-          const drawn = deck.slice(0, 1);
-          const newDeckList = deck.slice(1);
-          const nh = hand.filter((_, i) => i !== cardIndex);
-          setHand([...nh, ...drawn]);
-          setDeck(newDeckList);
-          setPlayer(p => ({ ...p, energy: p.maxEnergy }));
-        }
-      }
-      setUsedCardIndex(null);
-    }, 800);
-  };
 
   // 游戏主循环
   useEffect(() => {
@@ -519,26 +711,20 @@ export default function ImprovedRPG() {
   const drawPlayerSprite = (ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) => {
     const bounce = Math.sin(frame * 0.15) * 2;
     if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
-    // 身体 - 蓝色战士外套
     ctx.fillStyle = '#2962D4';
     ctx.fillRect(sx - 10, sy - 20 + bounce, 20, 24);
     ctx.fillStyle = '#42A5F5';
     ctx.fillRect(sx - 8, sy - 18 + bounce, 4, 8);
-    // 头部
     ctx.fillStyle = '#FFCC80';
     ctx.beginPath(); ctx.arc(sx, sy - 28 + bounce, 10, 0, Math.PI * 2); ctx.fill();
-    // 头发
     ctx.fillStyle = '#424242';
     ctx.beginPath(); ctx.arc(sx, sy - 32 + bounce, 9, Math.PI, 0); ctx.fill();
-    // 眼睛
     ctx.fillStyle = '#212121';
     ctx.fillRect(sx - 5, sy - 30 + bounce, 3, 3);
     ctx.fillRect(sx + 2, sy - 30 + bounce, 3, 3);
-    // 腿部
     ctx.fillStyle = '#5D4037';
     ctx.fillRect(sx - 8, sy + 4 + bounce, 6, 8);
     ctx.fillRect(sx + 2, sy + 4 + bounce, 6, 8);
-    // 武器
     if (facing === 'right' || facing === 'down' || isAttacking) {
       ctx.fillStyle = '#9E9E9E';
       ctx.fillRect(sx + 12, sy - 18 + bounce, 4, 24);
@@ -561,7 +747,6 @@ export default function ImprovedRPG() {
     }
   };
 
-  // 史莱姆
   const drawSlime = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const squish = Math.sin(frame * 0.15) * 3;
     const scale = isElite ? 1.5 : 1;
@@ -579,7 +764,6 @@ export default function ImprovedRPG() {
     }
   };
 
-  // 灰狼
   const drawWolf = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const run = Math.abs(Math.sin(frame * 0.3)) * 4;
     const col = isElite ? '#374151' : '#757575';
@@ -600,7 +784,6 @@ export default function ImprovedRPG() {
     }
   };
 
-  // 哥布林
   const drawGoblin = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const hop = Math.abs(Math.sin(frame * 0.2)) * 3;
     const col = isElite ? '#1B5E20' : '#66BB6A';
@@ -631,7 +814,6 @@ export default function ImprovedRPG() {
     else if (m.type === 'goblin') drawGoblin(ctx, m.x, m.y, frame, m.isElite);
   };
 
-  // NPC
   const drawNPC = (ctx: CanvasRenderingContext2D, sx: number, sy: number, npc: typeof npcs[0], frame: number) => {
     const glow = Math.sin(frame * 0.08) * 0.3 + 0.7;
     ctx.fillStyle = `rgba(218, 165, 32, ${glow * 0.3})`;
@@ -656,7 +838,6 @@ export default function ImprovedRPG() {
     ctx.fillText(npc.icon, sx - 6, sy + 2);
   };
 
-  // 宝箱
   const drawTreasure = (ctx: CanvasRenderingContext2D, sx: number, sy: number, opened: boolean, frame: number) => {
     if (opened) return;
     const bounce = Math.sin(frame * 0.1) * 2;
@@ -692,9 +873,8 @@ export default function ImprovedRPG() {
       }
     }
 
-    // 安全区光晕
-    const inSafeZone = player.x >= 32 && player.x <= 48 && player.y >= 28 && player.y <= 44;
-    if (inSafeZone) {
+    const inSZ = player.x >= 32 && player.x <= 48 && player.y >= 28 && player.y <= 44;
+    if (inSZ) {
       const glowAlpha = Math.sin(animFrame * 0.05) * 0.08 + 0.12;
       ctx.fillStyle = `rgba(255, 215, 0, ${glowAlpha})`;
       for (let ty = 0; ty < tilesY; ty++) {
@@ -707,7 +887,6 @@ export default function ImprovedRPG() {
       }
     }
 
-    // NPC
     npcs.forEach(npc => {
       const sx = (npc.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
       const sy = (npc.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
@@ -715,7 +894,6 @@ export default function ImprovedRPG() {
       drawNPC(ctx, sx, sy, npc, animFrame);
     });
 
-    // 宝箱
     treasures.forEach(t => {
       if (t.opened) return;
       const sx = (t.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
@@ -724,7 +902,6 @@ export default function ImprovedRPG() {
       drawTreasure(ctx, sx, sy, t.opened, animFrame);
     });
 
-    // 怪物
     monsters.forEach(m => {
       if (m.state === 'dead') return;
       const sx = (m.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
@@ -745,12 +922,10 @@ export default function ImprovedRPG() {
       }
     });
 
-    // 玩家
     const px = (player.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
     const py = (player.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
     drawPlayerSprite(ctx, px, py, player.facing, animFrame, player.isAttacking, player.invincible);
 
-    // 伤害数字
     damages.forEach(d => {
       ctx.fillStyle = d.color;
       ctx.font = 'bold 14px sans-serif';
@@ -802,42 +977,105 @@ export default function ImprovedRPG() {
     );
   }
 
-  // 奖励弹窗
+  // 剧情卡奖励弹窗
   if (showRewards && cardRewards.length > 0) {
     const card = cardRewards[0];
+    const rarityColor = RARITY_COLORS[card.rarity];
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-b from-yellow-900 to-slate-900 rounded-2xl p-8 border border-yellow-500 shadow-2xl max-w-sm w-full mx-4 text-center">
+        <div className="bg-gradient-to-b from-yellow-900 to-slate-900 rounded-2xl p-8 border-2 shadow-2xl max-w-sm w-full mx-4 text-center" style={{ borderColor: rarityColor }}>
           <div className="text-4xl mb-4">🎉</div>
-          <h2 className="text-xl font-bold text-yellow-400 mb-2">获得卡牌！</h2>
-          <div className={`bg-slate-800 rounded-xl p-4 mb-4 ${card.rarity >= 4 ? 'border-2 border-yellow-400' : card.rarity >= 3 ? 'border-2 border-purple-400' : 'border border-slate-600'}`}>
-            <div className="text-white font-bold text-lg">{card.name}</div>
-            <div className="text-yellow-400 text-sm">{RARITY_NAMES[card.rarity]}</div>
-            <div className="text-slate-400 text-xs mt-1">{card.description}</div>
-            <div className="text-blue-400 text-xs mt-1">费用: {card.energyCost} 能量</div>
+          <h2 className="text-xl font-bold text-yellow-400 mb-2">获得剧情卡！</h2>
+          <div style={{ borderColor: rarityColor, borderWidth: 2, borderRadius: 12, padding: 16, background: '#1a1a2e', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 20 }}>
+                {card.type === 'character' ? '👤' : card.type === 'story' ? '📜' : card.type === 'chapter' ? '🗺️' : '💎'}
+              </span>
+              <span style={{ color: rarityColor, fontSize: 16 }}>{"⭐".repeat(card.rarity)}</span>
+            </div>
+            <div style={{ color: 'white', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{card.name}</div>
+            <div style={{ color: '#9CA3AF', fontSize: 12, lineHeight: 1.5, marginBottom: 8 }}>{card.description}</div>
+            <div style={{ color: '#F59E0B', fontSize: 11, paddingTop: 8, borderTop: '1px solid #333' }}>📖 {card.storyEffect}</div>
           </div>
-          <button onClick={() => { setShowRewards(false); setCardRewards([]); }} className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl font-bold">收入卡组</button>
+          <button
+            onClick={() => {
+              setCollectedCards(prev => [...prev, card]);
+              setShowRewards(false);
+              setCardRewards([]);
+            }}
+            className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl font-bold">
+            收入卡组
+          </button>
         </div>
       </div>
     );
   }
 
-  // 卡牌游戏弹窗
+  // 卡牌收藏弹窗
   if (showCardGame) {
+    const filteredCards = cardFilter === 'all' ? collectedCards : collectedCards.filter(c => c.type === cardFilter);
+    const filterButtons: Array<{ key: typeof cardFilter; label: string }> = [
+      { key: 'all', label: '全部' },
+      { key: 'character', label: '👤角色' },
+      { key: 'story', label: '📜剧情' },
+      { key: 'chapter', label: '🗺️章节' },
+      { key: 'fragment', label: '💎碎片' },
+    ];
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-purple-500 shadow-2xl max-w-md w-full mx-4">
-          <h2 className="text-2xl font-bold text-purple-400 mb-4 text-center">🃏 卡牌收藏</h2>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {ALL_CARDS.map(card => (
-              <div key={card.id} className={`bg-slate-700 rounded-lg p-2 text-center ${card.rarity >= 4 ? 'border border-yellow-400' : card.rarity >= 3 ? 'border border-purple-400' : ''}`}>
-                <div className="text-white text-xs font-bold">{card.name}</div>
-                <div className="text-yellow-400 text-[10px]">{RARITY_NAMES[card.rarity]}</div>
-                <div className="text-blue-400 text-[10px]">⚡{card.energyCost}</div>
-              </div>
+        <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-purple-500 shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+          <h2 className="text-2xl font-bold text-purple-400 mb-4 text-center">🃏 剧情卡收藏</h2>
+          <p className="text-slate-400 text-sm text-center mb-3">卡牌是剧情的碎片 — 收集它们来推进世界</p>
+
+          {/* 过滤器 */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {filterButtons.map(btn => (
+              <button
+                key={btn.key}
+                onClick={() => setCardFilter(btn.key)}
+                className={`px-3 py-1 rounded-lg text-sm font-bold transition-colors ${cardFilter === btn.key ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {btn.label}
+              </button>
             ))}
           </div>
-          <button onClick={() => setShowCardGame(false)} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold">返回游戏</button>
+
+          {/* 卡牌列表 */}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {filteredCards.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">
+                <div className="text-4xl mb-2">🃏</div>
+                <p>还没有收集到这类卡牌</p>
+                <p className="text-xs mt-1">击败怪物和开启宝箱可获得剧情卡</p>
+              </div>
+            ) : (
+              filteredCards.map(card => renderCard(card))
+            )}
+          </div>
+
+          {/* 全卡展示入口 */}
+          <div className="mt-4 pt-4 border-t border-slate-700">
+            <p className="text-slate-400 text-xs text-center mb-2">已收集 {collectedCards.length} / {ALL_STORY_CARDS.length} 张卡牌</p>
+            <div className="grid grid-cols-6 gap-1 mb-3">
+              {ALL_STORY_CARDS.map(c => {
+                const owned = collectedCards.some(x => x.id === c.id);
+                return (
+                  <div key={c.id} style={{
+                    width: 32, height: 32, borderRadius: 4,
+                    background: owned ? '#1a1a2e' : '#0a0a0f',
+                    border: `1px solid ${RARITY_COLORS[c.rarity]}`,
+                    opacity: owned ? 1 : 0.3,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14,
+                  }}>
+                    {c.type === 'character' ? '👤' : c.type === 'story' ? '📜' : c.type === 'chapter' ? '🗺️' : '💎'}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={() => setShowCardGame(false)} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold mt-2">返回游戏</button>
         </div>
       </div>
     );
@@ -862,6 +1100,7 @@ export default function ImprovedRPG() {
           <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all" style={{ width: `${player.energy / player.maxEnergy * 100}%` }} /></div>
         </div>
         <div className="text-slate-400 text-sm">EXP: {player.exp}/{player.expToLevel}</div>
+        <div className="text-slate-400 text-sm">🃏 {collectedCards.length}</div>
       </div>
 
       {/* 地图画布 */}
@@ -908,7 +1147,7 @@ export default function ImprovedRPG() {
         {/* 交互提示 */}
         {interactionHint && (
           <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-purple-600/90 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2">
-            <span>🃏</span> 按 E 与发牌员对话
+            <span>🃏</span> 按 E 查看剧情卡收藏
           </div>
         )}
       </div>
