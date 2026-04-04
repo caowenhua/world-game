@@ -1263,6 +1263,12 @@ export default function ImprovedRPG() {
     const cur = STORY_LINES[storyIdx];
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
+        <button
+          onClick={() => setGameState('playing')}
+          className="absolute top-4 right-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold z-20"
+        >
+          跳过全部 🚀
+        </button>
         <div className="w-full max-w-lg bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-600 shadow-2xl">
           <div className="flex items-center gap-4 mb-6">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold ${cur.speaker === '旁白' ? 'bg-gray-700' : cur.speaker === '哨兵队长' ? 'bg-blue-700' : cur.speaker === '发牌员' ? 'bg-purple-700' : 'bg-purple-800'}`}>
@@ -1439,8 +1445,16 @@ export default function ImprovedRPG() {
       </div>
 
       {/* 地图画布 */}
-      <div className="flex-1 relative overflow-hidden" ref={containerRef}>
+      <div className="flex-1 relative overflow-hidden" ref={containerRef} style={{ minHeight: '400px' }}>
         <canvas ref={canvasRef} width={dimensions.width} height={dimensions.height} className="w-full h-full" />
+        {!animFrame && gameState === 'playing' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-white">
+            <div className="text-center">
+              <div className="text-4xl mb-2">🗺️</div>
+              <div>地图加载中...</div>
+            </div>
+          </div>
+        )}
 
         {/* 虚拟摇杆 */}
         <div className="absolute bottom-20 left-4 flex flex-col items-center gap-1">
