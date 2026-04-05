@@ -1189,6 +1189,25 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     ctx.fillRect(sx + 2, sy + 12, 3, 2); ctx.fillRect(sx + 11, sy + 13, 2, 2);
   };
 
+  // Pokemon-style building/house tile
+  const drawBuildingTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number) => {
+    // Stone base/floor
+    ctx.fillStyle = T.PB; ctx.fillRect(sx, sy, 16, 16);
+    // Building walls (brown)
+    ctx.fillStyle = '#8B6914'; ctx.fillRect(sx + 1, sy + 4, 14, 10);
+    // Roof (red/tan triangle simplified)
+    ctx.fillStyle = '#C0392B'; ctx.beginPath(); ctx.moveTo(sx, sy + 5); ctx.lineTo(sx + 8, sy); ctx.lineTo(sx + 16, sy + 5); ctx.closePath(); ctx.fill();
+    // Roof highlight
+    ctx.fillStyle = '#E74C3C'; ctx.beginPath(); ctx.moveTo(sx + 2, sy + 5); ctx.lineTo(sx + 8, sy + 1); ctx.lineTo(sx + 8, sy + 5); ctx.closePath(); ctx.fill();
+    // Door
+    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx + 6, sy + 8, 4, 6);
+    // Window
+    ctx.fillStyle = '#F9CA24'; ctx.fillRect(sx + 2, sy + 6, 3, 3);
+    ctx.fillStyle = '#F39C12'; ctx.fillRect(sx + 11, sy + 6, 3, 3);
+    // Chimney / detail
+    ctx.fillStyle = '#7B241C'; ctx.fillRect(sx + 11, sy + 1, 3, 4);
+  };
+
 const drawPlayerSprite = (ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) => {
     const bounce = Math.sin(frame * 0.15) * 2;
     if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
