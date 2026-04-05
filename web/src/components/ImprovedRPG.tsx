@@ -10,7 +10,7 @@ import { characterSave } from '@/lib/api';
 //  第四部分：卡牌类型系统 & 第七部分：发牌员系统
 // ============================================================
 
-const TILE_SIZE = 32;
+const TILE_SIZE = 16;
 const MAP_WIDTH = 80;
 const MAP_HEIGHT = 60;
 
