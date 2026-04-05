@@ -1084,21 +1084,45 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     FL: '#ff6a6a', FY: '#ffca6a', FB: '#6a9aff',
   };
 
+  // GBC Pokemon-style grass tile: 3-pixel-tall grass blades with 3 variants
   const drawGrassTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    // Base grass ground
     ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
+    // 3 variants determined by tile position
     const v = (tileX * 7 + tileY * 13) % 3;
-    const dots = v === 0 ? [[3,2,3,2],[12,4,3,2],[5,9,3,2],[13,11,3,2],[2,14,2,2],[10,15,3,2]]
-                : v === 1 ? [[5,1,4,2],[1,6,3,2],[11,8,2,2],[4,12,4,2],[14,14,3,2]]
-                : [[2,3,3,2],[9,5,4,2],[1,11,3,2],[12,13,2,2],[6,15,4,2]];
-    for (const [px, py, pw, ph] of dots) {
-      ctx.fillStyle = py < 7 ? T.GD : T.GL;
-      ctx.fillRect(sx + px, sy + py, pw, ph);
+    // Draw 3-pixel-tall grass blades (GBC style)
+    // Each blade has base (#2d5a27), mid (#4a8a37), tip (#6ab86a)
+    const blades = v === 0
+      ? [[2,12,2],[4,11,2],[7,12,2],[10,11,2],[13,12,2],[1,13,2],[6,13,2],[11,13,2],[14,13,2],[3,10,2],[9,10,2]]
+      : v === 1
+      ? [[1,12,2],[4,13,2],[7,12,2],[11,11,2],[14,12,2],[2,13,2],[5,13,2],[9,13,2],[12,13,2],[0,12,2],[8,10,2]]
+      : [[3,12,2],[6,11,2],[9,12,2],[12,11,2],[15,12,2],[1,13,2],[4,13,2],[8,13,2],[13,13,2],[2,10,2],[10,10,2]];
+    for (const [px, py, pw] of blades) {
+      // Base of blade
+      ctx.fillStyle = T.GD;
+      ctx.fillRect(sx + px, sy + py, pw, 1);
+      // Middle of blade
+      ctx.fillStyle = T.GB;
+      ctx.fillRect(sx + px, sy + py - 1, pw, 1);
+      // Tip of blade
+      ctx.fillStyle = T.GL;
+      ctx.fillRect(sx + px, sy + py - 2, pw, 1);
     }
-    // Occasional flower
+    // Occasional flower (every ~11th tile)
     if ((tileX * 3 + tileY * 7) % 11 === 0) {
-      ctx.fillStyle = [T.FL, T.FY, T.FB][(tileX + tileY) % 3];
-      ctx.fillRect(sx + 7, sy + 5, 2, 2);
-      ctx.fillStyle = '#fff'; ctx.fillRect(sx + 8, sy + 6, 1, 1);
+      const fc = (tileX + tileY) % 3;
+      const flowerColors = [T.FL, T.FY, T.FB];
+      // Flower petals
+      ctx.fillStyle = flowerColors[fc];
+      ctx.fillRect(sx + 7, sy + 6, 2, 2);
+      ctx.fillRect(sx + 6, sy + 7, 1, 1);
+      ctx.fillRect(sx + 9, sy + 7, 1, 1);
+      // Flower center
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx + 7, sy + 7, 1, 1);
+      // Stem
+      ctx.fillStyle = T.GD;
+      ctx.fillRect(sx + 7, sy + 8, 1, 2);
     }
   };
 
@@ -1154,239 +1178,421 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     ctx.fillRect(sx + 3, sy + 13, 5, 3); ctx.fillRect(sx + 11, sy + 13, 4, 3);
   };
 
+  // GBC Pokemon-style tree tile: pixel art with layered circular canopy
   const drawTreeTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
     // Ground
     ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
-    // Trunk
+    // Trunk (brown pixel)
     ctx.fillStyle = T.TD; ctx.fillRect(sx + 6, sy + 10, 4, 6);
-    // Canopy layers (Pokemon-style)
+    ctx.fillStyle = '#4a3020'; ctx.fillRect(sx + 7, sy + 10, 1, 4);
+    // Canopy layers (pixel circles using rectangles - GBC style)
+    // Dark green base canopy
+    ctx.fillStyle = '#2a5a20';
+    ctx.fillRect(sx + 1, sy + 3, 14, 10);
+    ctx.fillRect(sx + 2, sy + 2, 12, 1);
+    ctx.fillRect(sx + 2, sy + 13, 12, 1);
+    // Medium green middle layer
     ctx.fillStyle = T.TB;
-    ctx.beginPath(); ctx.arc(sx + 8, sy + 7, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(sx + 2, sy + 3, 12, 9);
+    ctx.fillRect(sx + 3, sy + 2, 10, 1);
+    ctx.fillRect(sx + 3, sy + 12, 10, 1);
+    // Light green highlights (top-left of canopy)
     ctx.fillStyle = T.TL;
-    ctx.beginPath(); ctx.arc(sx + 6, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 10, sy + 5, 3, 0, Math.PI * 2); ctx.fill();
-    // Dark edge
-    ctx.strokeStyle = T.TD; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(sx + 8, sy + 7, 7, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillRect(sx + 3, sy + 3, 4, 4);
+    ctx.fillRect(sx + 4, sy + 4, 2, 2);
+    ctx.fillRect(sx + 2, sy + 4, 1, 2);
+    // Dark edge pixels for depth
+    ctx.fillStyle = '#1a4010';
+    ctx.fillRect(sx + 11, sy + 10, 4, 3);
+    ctx.fillRect(sx + 10, sy + 11, 1, 2);
+    ctx.fillRect(sx + 12, sy + 11, 1, 2);
   };
 
+  // GBC Pokemon-style flower tile: grass base + colorful flowers (red/yellow/blue)
   const drawFlowerTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    // Base grass
     ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
     const v = (tileX * 7 + tileY * 11) % 4;
-    const colors = [T.FL, T.FY, T.FB, '#fff'];
-    // Draw flowers
+    const colors = [T.FL, T.FY, T.FB];
+    // Draw 3 flowers with stems
     for (let i = 0; i < 3; i++) {
       const fx = 2 + ((i * 5 + v * 3) % 12);
-      const fy = 2 + ((i * 7 + v * 5) % 10);
-      ctx.fillStyle = colors[(i + v) % 4];
-      ctx.fillRect(sx + fx, sy + fy, 2, 2);
-      ctx.fillStyle = '#fff'; ctx.fillRect(sx + fx, sy + fy, 1, 1);
+      const fy = 3 + ((i * 7 + v * 5) % 9);
+      const fc = colors[(i + v) % 3];
+      // Stem
+      ctx.fillStyle = T.GD;
+      ctx.fillRect(sx + fx, sy + fy + 2, 1, 3);
+      // Flower petals
+      ctx.fillStyle = fc;
+      ctx.fillRect(sx + fx - 1, sy + fy, 3, 2);
+      ctx.fillRect(sx + fx, sy + fy - 1, 1, 1);
+      ctx.fillRect(sx + fx, sy + fy + 2, 1, 1);
+      // Flower center
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx + fx, sy + fy, 1, 1);
     }
-    // Grass dots
-    ctx.fillStyle = T.GD;
-    ctx.fillRect(sx + 4, sy + 2, 2, 2); ctx.fillRect(sx + 12, sy + 8, 2, 2);
-    ctx.fillStyle = T.GL;
-    ctx.fillRect(sx + 2, sy + 12, 3, 2); ctx.fillRect(sx + 11, sy + 13, 2, 2);
+    // Grass blades (3-pixel tall)
+    const blades = [[3,11,2],[7,12,2],[11,11,2],[14,12,2],[1,13,2],[5,13,2],[9,13,2],[13,13,2],[2,10,2],[8,10,2],[12,10,2]];
+    for (const [px, py, pw] of blades) {
+      ctx.fillStyle = T.GD;
+      ctx.fillRect(sx + px, sy + py, pw, 1);
+      ctx.fillStyle = T.GB;
+      ctx.fillRect(sx + px, sy + py - 1, pw, 1);
+      ctx.fillStyle = T.GL;
+      ctx.fillRect(sx + px, sy + py - 2, pw, 1);
+    }
   };
 
-  // Pokemon-style building/house tile
+  // GBC Pokemon-style building tile: pixel art house
   const drawBuildingTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number) => {
     // Stone base/floor
     ctx.fillStyle = T.PB; ctx.fillRect(sx, sy, 16, 16);
     // Building walls (brown)
     ctx.fillStyle = '#8B6914'; ctx.fillRect(sx + 1, sy + 4, 14, 10);
-    // Roof (red/tan triangle simplified)
-    ctx.fillStyle = '#C0392B'; ctx.beginPath(); ctx.moveTo(sx, sy + 5); ctx.lineTo(sx + 8, sy); ctx.lineTo(sx + 16, sy + 5); ctx.closePath(); ctx.fill();
+    // Roof - pixel triangle (GBC style)
+    ctx.fillStyle = '#C0392B';
+    ctx.fillRect(sx + 1, sy + 4, 14, 1);
+    ctx.fillRect(sx + 2, sy + 3, 12, 1);
+    ctx.fillRect(sx + 3, sy + 2, 10, 1);
+    ctx.fillRect(sx + 4, sy + 1, 8, 1);
+    ctx.fillRect(sx + 5, sy + 0, 6, 1);
+    ctx.fillRect(sx + 6, sy - 1, 4, 1);
     // Roof highlight
-    ctx.fillStyle = '#E74C3C'; ctx.beginPath(); ctx.moveTo(sx + 2, sy + 5); ctx.lineTo(sx + 8, sy + 1); ctx.lineTo(sx + 8, sy + 5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#E74C3C';
+    ctx.fillRect(sx + 5, sy + 0, 2, 1);
+    ctx.fillRect(sx + 5, sy + 1, 3, 1);
+    ctx.fillRect(sx + 4, sy + 2, 4, 1);
     // Door
     ctx.fillStyle = '#5D4037'; ctx.fillRect(sx + 6, sy + 8, 4, 6);
+    ctx.fillStyle = '#3a2510'; ctx.fillRect(sx + 7, sy + 9, 2, 1);
     // Window
     ctx.fillStyle = '#F9CA24'; ctx.fillRect(sx + 2, sy + 6, 3, 3);
     ctx.fillStyle = '#F39C12'; ctx.fillRect(sx + 11, sy + 6, 3, 3);
-    // Chimney / detail
+    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx + 3, sy + 7, 1, 1);
+    ctx.fillRect(sx + 12, sy + 7, 1, 1);
+    // Chimney
     ctx.fillStyle = '#7B241C'; ctx.fillRect(sx + 11, sy + 1, 3, 4);
+    ctx.fillStyle = '#5a1810'; ctx.fillRect(sx + 12, sy + 2, 1, 2);
   };
 
+// GBC Pokemon-style player sprite (32x32): Red cap+visor, yellow hair, skin face, blue tunic, brown pants, boots, sword, black outline
 const drawPlayerSprite = (ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) => {
     const bounce = Math.sin(frame * 0.15) * 2;
     if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(sx, sy + 14, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Shadow (pixel ellipse)
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(sx - 8, sy + 12, 16, 4);
+    ctx.fillRect(sx - 6, sy + 10, 12, 2);
+    // Black outline for body
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 8, sy - 18 + bounce, 16, 1);
+    ctx.fillRect(sx - 9, sy - 17 + bounce, 1, 18);
+    ctx.fillRect(sx + 8, sy - 17 + bounce, 1, 18);
+    ctx.fillRect(sx - 8, sy + 1 + bounce, 16, 1);
     // Body - blue tunic (Pokemon trainer style)
-    ctx.fillStyle = '#2962D4'; ctx.strokeRect(sx - 8, sy - 18 + bounce, 16, 18); ctx.fill();
+    ctx.fillStyle = '#2962D4';
+    ctx.fillRect(sx - 8, sy - 17 + bounce, 16, 17);
+    ctx.fillStyle = '#1a4ab8';
+    ctx.fillRect(sx - 8, sy + 1 + bounce, 16, 1);
     // Belt
-    ctx.fillStyle = '#8B4513'; ctx.fillRect(sx - 8, sy - 4 + bounce, 16, 4);
-    // Head
-    ctx.fillStyle = '#FFCC80'; ctx.strokeRect(sx - 7, sy - 28 + bounce, 14, 10); ctx.fill();
-    // Hair (brown)
-    ctx.fillStyle = '#8B4513'; ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 4);
-    ctx.strokeRect(sx - 7, sy - 28 + bounce, 14, 4);
-    // Eyes - distinct pixel eyes
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(sx - 8, sy - 4 + bounce, 16, 3);
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(sx - 1, sy - 4 + bounce, 2, 3);
+    // Head (skin)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 1);
+    ctx.fillRect(sx - 8, sy - 27 + bounce, 1, 10);
+    ctx.fillRect(sx + 7, sy - 27 + bounce, 1, 10);
+    ctx.fillRect(sx - 7, sy - 17 + bounce, 14, 1);
+    ctx.fillStyle = '#FFCC80';
+    ctx.fillRect(sx - 7, sy - 27 + bounce, 14, 9);
+    // Hair (yellow - GBC style)
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 4);
+    ctx.fillStyle = '#E5A500';
+    ctx.fillRect(sx - 6, sy - 28 + bounce, 4, 2);
+    // Eyes - distinct pixel eyes (only when facing forward/side)
     if (facing === 'down' || facing === 'right' || facing === 'left') {
-      ctx.fillRect(sx - 4, sy - 22 + bounce, 3, 3);
-      ctx.fillRect(sx + 1, sy - 22 + bounce, 3, 3);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx - 5, sy - 23 + bounce, 3, 3);
+      ctx.fillRect(sx + 2, sy - 23 + bounce, 3, 3);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(sx - 4, sy - 22 + bounce, 2, 2);
+      ctx.fillRect(sx + 3, sy - 22 + bounce, 2, 2);
     }
-    // Hat/cap
-    ctx.fillStyle = '#E53935'; ctx.strokeRect(sx - 8, sy - 30 + bounce, 16, 4); ctx.fill();
-    // Legs
-    ctx.fillStyle = '#1565C0'; ctx.strokeRect(sx - 6, sy + 2 + bounce, 5, 8); ctx.fill();
-    ctx.strokeRect(sx + 1, sy + 2 + bounce, 5, 8); ctx.fill();
-    // Shoes
-    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx - 7, sy + 8 + bounce, 6, 4);
-    ctx.fillRect(sx + 1, sy + 8 + bounce, 6, 4);
-    // Sword (right side)
+    // Red cap/visor (Pokemon trainer style)
+    ctx.fillStyle = '#E53935';
+    ctx.fillRect(sx - 8, sy - 30 + bounce, 16, 3);
+    ctx.fillStyle = '#B71C1C';
+    ctx.fillRect(sx - 8, sy - 29 + bounce, 16, 1);
+    // Visor
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(sx - 8, sy - 28 + bounce, 16, 1);
+    // Legs (brown pants)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 6, sy + 2 + bounce, 5, 1);
+    ctx.fillRect(sx + 1, sy + 2 + bounce, 5, 1);
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(sx - 6, sy + 3 + bounce, 5, 7);
+    ctx.fillRect(sx + 1, sy + 3 + bounce, 5, 7);
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(sx - 5, sy + 4 + bounce, 3, 5);
+    ctx.fillRect(sx + 2, sy + 4 + bounce, 3, 5);
+    // Boots
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(sx - 7, sy + 9 + bounce, 6, 3);
+    ctx.fillRect(sx + 1, sy + 9 + bounce, 6, 3);
+    ctx.fillStyle = '#3E2723';
+    ctx.fillRect(sx - 7, sy + 11 + bounce, 6, 1);
+    ctx.fillRect(sx + 1, sy + 11 + bounce, 6, 1);
+    // Sword
     if (facing === 'right' || facing === 'down' || isAttacking) {
-      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx + 12, sy - 16 + bounce, 3, 16); ctx.fill();
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx + 10, sy - 16 + bounce, 7, 4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(sx + 11, sy - 16 + bounce, 3, 1);
+      ctx.fillStyle = '#9E9E9E';
+      ctx.fillRect(sx + 11, sy - 15 + bounce, 3, 14);
+      ctx.fillStyle = '#D0D0D0';
+      ctx.fillRect(sx + 11, sy - 15 + bounce, 1, 12);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(sx + 9, sy - 16 + bounce, 7, 3);
+      ctx.fillStyle = '#DAA520';
+      ctx.fillRect(sx + 9, sy - 14 + bounce, 7, 1);
       if (isAttacking) {
+        // Attack arc - pixel style
         ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx, sy - 6 + bounce, 28, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,215,0,0.3)';
+        ctx.fillRect(sx - 20, sy - 20 + bounce, 40, 40);
       }
     } else if (facing === 'left') {
-      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx - 15, sy - 16 + bounce, 3, 16); ctx.fill();
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx - 17, sy - 16 + bounce, 7, 4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(sx - 14, sy - 16 + bounce, 3, 1);
+      ctx.fillStyle = '#9E9E9E';
+      ctx.fillRect(sx - 14, sy - 15 + bounce, 3, 14);
+      ctx.fillStyle = '#D0D0D0';
+      ctx.fillRect(sx - 14, sy - 15 + bounce, 1, 12);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(sx - 16, sy - 16 + bounce, 7, 3);
     } else if (facing === 'up') {
-      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx - 1, sy - 36 + bounce, 3, 16); ctx.fill();
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx - 3, sy - 24 + bounce, 7, 4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(sx - 1, sy - 28 + bounce, 3, 1);
+      ctx.fillStyle = '#9E9E9E';
+      ctx.fillRect(sx - 1, sy - 27 + bounce, 3, 14);
+      ctx.fillStyle = '#D0D0D0';
+      ctx.fillRect(sx - 1, sy - 27 + bounce, 1, 12);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(sx - 3, sy - 16 + bounce, 7, 3);
     }
-  };;;
+  };
 
+  // GBC Pokemon-style slime (32x32): Green jelly blob, white highlight, big white eyes, black pupils, cute smile
   const drawSlime = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const squish = Math.sin(frame * 0.15) * 3;
-    const scale = isElite ? 1.3 : 1;
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    const s = isElite ? 1.3 : 1;
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(sx, sy + 10 * scale, (10 + squish) * scale, 4 * scale, 0, 0, Math.PI * 2); ctx.fill();
-    // Body - Pokemon-style jelly
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(sx - 10 * s, sy + 8 * s, 20 * s, 4 * s);
+    ctx.fillRect(sx - 8 * s, sy + 6 * s, 16 * s, 2 * s);
+    // Body outline (dark green)
+    ctx.fillStyle = isElite ? '#4A148C' : '#2E7D32';
+    ctx.fillRect(sx - 12 * s + squish, sy - 8 * s, (4 + squish) * s, 16 * s);
+    ctx.fillRect(sx + 8 * s - squish, sy - 8 * s, (4 + squish) * s, 16 * s);
+    ctx.fillRect(sx - 12 * s, sy - 8 * s, 24 * s, 2 * s);
+    ctx.fillRect(sx - 12 * s, sy + 8 * s - squish / 2, 24 * s, 2 * s);
+    ctx.fillRect(sx - 12 * s, sy - 6 * s, 2 * s, 14 * s);
+    ctx.fillRect(sx + 10 * s, sy - 6 * s, 2 * s, 14 * s);
+    // Body fill (green jelly)
     ctx.fillStyle = isElite ? '#7B1FA2' : '#43A047';
-    ctx.beginPath();
-    ctx.ellipse(sx, sy, (12 + squish) * scale, (10 - squish / 2) * scale, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    // Dark outline (Pokemon style)
-    ctx.strokeStyle = isElite ? '#4A148C' : '#2E7D32';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(sx, sy, (12 + squish) * scale, (10 - squish / 2) * scale, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    // Highlight blob (top-left, Pokemon-style)
+    ctx.fillRect(sx - 10 * s + squish, sy - 6 * s, (20 - squish * 2) * s, 12 * s);
+    ctx.fillRect(sx - 12 * s + squish, sy - 8 * s, (24 - squish * 2) * s, 2 * s);
+    ctx.fillRect(sx - 12 * s + squish, sy + 6 * s - squish / 2, (24 - squish * 2) * s, 2 * s);
+    // Body highlight
     ctx.fillStyle = isElite ? '#E1BEE7' : '#C8E6C9';
-    ctx.beginPath(); ctx.ellipse(sx - 4 * scale, sy - 3 * scale, 4 * scale, 3 * scale, -0.3, 0, Math.PI * 2); ctx.fill();
-    // Small highlight
+    ctx.fillRect(sx - 8 * s, sy - 5 * s, 6 * s, 4 * s);
     ctx.fillStyle = isElite ? '#F3E5F5' : '#E8F5E9';
-    ctx.fillRect(sx - 5 * scale, sy - 5 * scale, 2 * scale, 2 * scale);
-    // Eyes (big anime-style, Pokemon-like)
+    ctx.fillRect(sx - 6 * s, sy - 4 * s, 2 * s, 2 * s);
+    // Eyes (big white anime-style)
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(sx - 4 * scale, sy - 1 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 4 * scale, sy - 1 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(sx - 6 * s, sy - 2 * s, 5 * s, 5 * s);
+    ctx.fillRect(sx + 1 * s, sy - 2 * s, 5 * s, 5 * s);
     ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(sx - 3 * scale, sy - 1 * scale, 1.5 * scale, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 3 * scale, sy - 1 * scale, 1.5 * scale, 0, Math.PI * 2); ctx.fill();
-    // Mouth
+    ctx.fillRect(sx - 4 * s, sy - 1 * s, 3 * s, 3 * s);
+    ctx.fillRect(sx + 3 * s, sy - 1 * s, 3 * s, 3 * s);
+    // Eye shine
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 5 * s, sy - 2 * s, 1 * s, 1 * s);
+    ctx.fillRect(sx + 2 * s, sy - 2 * s, 1 * s, 1 * s);
+    // Cute smile
     ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(sx, sy + 4 * scale, 2 * scale, 0, Math.PI); ctx.fill();
+    ctx.fillRect(sx - 2 * s, sy + 3 * s, 4 * s, 1 * s);
+    ctx.fillRect(sx - 3 * s, sy + 2 * s, 1 * s, 1 * s);
+    ctx.fillRect(sx + 2 * s, sy + 2 * s, 1 * s, 1 * s);
     // Elite star
     if (isElite) {
-      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 12px sans-serif'; ctx.fillText('★', sx - 5, sy - 14);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(sx - 3, sy - 14, 2, 2);
+      ctx.fillRect(sx - 4, sy - 13, 4, 1);
+      ctx.fillRect(sx - 3, sy - 12, 2, 2);
     }
-  };;;
+  };
 
+  // GBC Pokemon-style wolf (32x32): Gray-brown fur, pointed ears, red eyes, visible fangs, bushy tail
   const drawWolf = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const run = Math.abs(Math.sin(frame * 0.3)) * 3;
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(sx, sy + 12, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(sx - 12, sy + 10, 24, 4);
+    ctx.fillRect(sx - 10, sy + 8, 20, 2);
+    // Body outline
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 14, sy - 8, 28, 16);
     // Body
     ctx.fillStyle = isElite ? '#37474F' : '#795548';
-    ctx.fillRect(sx - 14, sy - 8, 28, 16); ctx.strokeRect(sx - 14, sy - 8, 28, 16);
-    // Fur detail
+    ctx.fillRect(sx - 14, sy - 7, 28, 14);
+    // Fur detail (lighter patches)
     ctx.fillStyle = isElite ? '#546E7A' : '#8D6E63';
-    ctx.fillRect(sx - 10, sy - 6, 8, 4);
-    ctx.fillRect(sx + 2, sy - 6, 8, 4);
+    ctx.fillRect(sx - 10, sy - 5, 8, 4);
+    ctx.fillRect(sx + 2, sy - 5, 8, 4);
+    // Head outline
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 8, sy - 22, 16, 16);
     // Head
     ctx.fillStyle = isElite ? '#37474F' : '#795548';
-    ctx.beginPath(); ctx.arc(sx, sy - 14, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillRect(sx - 7, sy - 21, 14, 14);
+    // Snout outline
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 4, sy - 14, 10, 8);
     // Snout
     ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
-    ctx.fillRect(sx - 4, sy - 10, 10, 6); ctx.strokeRect(sx - 4, sy - 10, 10, 6);
+    ctx.fillRect(sx - 3, sy - 13, 9, 6);
     // Nose
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 2, sy - 10, 4, 3);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(sx + 3, sy - 13, 3, 3);
     // Eyes (red, menacing)
     ctx.fillStyle = isElite ? '#FF1744' : '#F44336';
-    ctx.beginPath(); ctx.arc(sx - 4, sy - 16, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 4, sy - 16, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 5, sy - 17, 1, 1); ctx.fillRect(sx + 3, sy - 17, 1, 1);
-    // Ears (pointed)
+    ctx.fillRect(sx - 6, sy - 18, 4, 4);
+    ctx.fillRect(sx + 2, sy - 18, 4, 4);
+    // Eye shine
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 6, sy - 18, 1, 1);
+    ctx.fillRect(sx + 2, sy - 18, 1, 1);
+    // Pointed ears (pixel triangles)
     ctx.fillStyle = isElite ? '#37474F' : '#795548';
-    ctx.beginPath(); ctx.moveTo(sx - 8, sy - 20); ctx.lineTo(sx - 14, sy - 28); ctx.lineTo(sx - 2, sy - 22); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(sx + 8, sy - 20); ctx.lineTo(sx + 14, sy - 28); ctx.lineTo(sx + 2, sy - 22); ctx.closePath(); ctx.fill(); ctx.stroke();
-    // Tail
+    ctx.fillRect(sx - 8, sy - 24, 4, 4);
+    ctx.fillRect(sx - 9, sy - 26, 2, 2);
+    ctx.fillRect(sx - 10, sy - 27, 1, 1);
+    ctx.fillRect(sx + 4, sy - 24, 4, 4);
+    ctx.fillRect(sx + 7, sy - 26, 2, 2);
+    ctx.fillRect(sx + 9, sy - 27, 1, 1);
+    // Ear inner
+    ctx.fillStyle = isElite ? '#546E7A' : '#A1887F';
+    ctx.fillRect(sx - 7, sy - 23, 2, 2);
+    ctx.fillRect(sx + 5, sy - 23, 2, 2);
+    // Tail (bushy)
     ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
-    ctx.beginPath(); ctx.moveTo(sx - 14, sy - 4); ctx.lineTo(sx - 22, sy - 10); ctx.lineTo(sx - 14, sy - 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillRect(sx - 18, sy - 6, 6, 8);
+    ctx.fillRect(sx - 20, sy - 8, 4, 4);
+    ctx.fillRect(sx - 21, sy - 10, 2, 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 18, sy - 6, 6, 1);
     // Legs
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run);
+    ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run);
     ctx.fillStyle = isElite ? '#263238' : '#5D4037';
-    ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run); ctx.strokeRect(sx - 10, sy + 8 - run, 5, 6 + run);
-    ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run); ctx.strokeRect(sx + 5, sy + 8 + run, 5, 6 - run);
+    ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run);
+    ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run);
+    // Fangs (visible when attacking)
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 2, sy - 9, 2, 2);
+    ctx.fillRect(sx + 2, sy - 9, 2, 2);
     // Elite aura
     if (isElite) {
       ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeRect(sx - 20, sy - 24, 40, 48);
       ctx.setLineDash([]);
     }
-  };;
+  };
 
+  // GBC Pokemon-style goblin (32x32): Green skin, big pointy ears, yellow eyes, wooden club
   const drawGoblin = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const hop = Math.abs(Math.sin(frame * 0.2)) * 3;
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(sx, sy + 12, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(sx - 8, sy + 10, 16, 4);
+    ctx.fillRect(sx - 6, sy + 8, 12, 2);
+    // Body outline
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 7, sy - 12 + hop, 14, 16);
     // Body (small, cartoon proportion)
     ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
-    ctx.fillRect(sx - 7, sy - 12 + hop, 14, 16); ctx.strokeRect(sx - 7, sy - 12 + hop, 14, 16);
+    ctx.fillRect(sx - 7, sy - 11 + hop, 14, 14);
+    // Body detail
+    ctx.fillStyle = isElite ? '#2E7D32' : '#7CB342';
+    ctx.fillRect(sx - 5, sy - 9 + hop, 10, 10);
+    // Head outline
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 8, sy - 24 + hop, 16, 14);
     // Head (big ears, small face)
     ctx.fillStyle = isElite ? '#2E7D32' : '#7CB342';
-    ctx.beginPath(); ctx.arc(sx, sy - 18 + hop, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // Big pointy ears
-    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(sx - 9, sy - 18 + hop); ctx.lineTo(sx - 18, sy - 30 + hop); ctx.lineTo(sx - 5, sy - 16 + hop); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(sx + 9, sy - 18 + hop); ctx.lineTo(sx + 18, sy - 30 + hop); ctx.lineTo(sx + 5, sy - 16 + hop); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillRect(sx - 7, sy - 23 + hop, 14, 12);
+    // Big pointy ears (pixel triangles)
+    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
+    ctx.fillRect(sx - 12, sy - 26 + hop, 6, 6);
+    ctx.fillRect(sx - 14, sy - 28 + hop, 4, 4);
+    ctx.fillRect(sx - 15, sy - 30 + hop, 2, 2);
+    ctx.fillRect(sx + 6, sy - 26 + hop, 6, 6);
+    ctx.fillRect(sx + 10, sy - 28 + hop, 4, 4);
+    ctx.fillRect(sx + 13, sy - 30 + hop, 2, 2);
     // Ear inner
     ctx.fillStyle = isElite ? '#4CAF50' : '#AED581';
-    ctx.beginPath(); ctx.moveTo(sx - 10, sy - 18 + hop); ctx.lineTo(sx - 14, sy - 26 + hop); ctx.lineTo(sx - 7, sy - 17 + hop); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(sx + 10, sy - 18 + hop); ctx.lineTo(sx + 14, sy - 26 + hop); ctx.lineTo(sx + 7, sy - 17 + hop); ctx.closePath(); ctx.fill();
+    ctx.fillRect(sx - 11, sy - 25 + hop, 4, 4);
+    ctx.fillRect(sx + 7, sy - 25 + hop, 4, 4);
     // Eyes (big yellow, menacing)
     ctx.fillStyle = '#FFEB3B';
-    ctx.beginPath(); ctx.arc(sx - 4, sy - 19 + hop, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 4, sy - 19 + hop, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(sx - 6, sy - 20 + hop, 4, 4);
+    ctx.fillRect(sx + 2, sy - 20 + hop, 4, 4);
     ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(sx - 3, sy - 19 + hop, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(sx + 5, sy - 19 + hop, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(sx - 5, sy - 19 + hop, 2, 2);
+    ctx.fillRect(sx + 3, sy - 19 + hop, 2, 2);
+    // Eye shine
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 6, sy - 20 + hop, 1, 1);
+    ctx.fillRect(sx + 2, sy - 20 + hop, 1, 1);
     // Nose
-    ctx.fillStyle = '#33691E'; ctx.fillRect(sx - 2, sy - 16 + hop, 4, 3);
+    ctx.fillStyle = '#33691E';
+    ctx.fillRect(sx - 2, sy - 17 + hop, 4, 3);
     // Mouth with fangs
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(sx - 4, sy - 13 + hop, 8, 2);
-    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 4, sy - 13 + hop, 2, 2);
-    ctx.fillRect(sx + 2, sy - 13 + hop, 2, 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 4, sy - 14 + hop, 8, 2);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 4, sy - 14 + hop, 2, 2);
+    ctx.fillRect(sx + 2, sy - 14 + hop, 2, 2);
     // Club/weapon
-    ctx.fillStyle = '#795548'; ctx.strokeRect(sx + 10, sy - 14 + hop, 4, 18); ctx.fill();
-    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx + 8, sy - 16 + hop, 8, 6);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx + 10, sy - 14 + hop, 4, 18);
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(sx + 10, sy - 13 + hop, 4, 16);
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(sx + 8, sy - 16 + hop, 8, 6);
+    ctx.fillStyle = '#3E2723';
+    ctx.fillRect(sx + 9, sy - 15 + hop, 6, 4);
     // Legs
-    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    ctx.fillRect(sx - 6, sy + 4 + hop, 5, 6); ctx.strokeRect(sx - 6, sy + 4 + hop, 5, 6);
-    ctx.fillRect(sx + 1, sy + 4 + hop, 5, 6); ctx.strokeRect(sx + 1, sy + 4 + hop, 5, 6);
-    // Elite crown
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx - 6, sy + 4 + hop, 5, 6);
+    ctx.fillRect(sx + 1, sy + 4 + hop, 5, 6);
+    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
+    ctx.fillRect(sx - 6, sy + 4 + hop, 5, 5);
+    ctx.fillRect(sx + 1, sy + 4 + hop, 5, 5);
+    // Elite star
     if (isElite) {
-      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('★', sx - 4, sy - 30 + hop);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(sx - 3, sy - 32 + hop, 2, 2);
+      ctx.fillRect(sx - 4, sy - 31 + hop, 4, 1);
+      ctx.fillRect(sx - 3, sy - 30 + hop, 2, 2);
     }
-  };;
+  };
 
   const drawMonsterSprite = (ctx: CanvasRenderingContext2D, m: typeof monsters[0], frame: number) => {
     if (m.type === 'slime') drawSlime(ctx, m.x, m.y, frame, m.isElite);
