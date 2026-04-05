@@ -25,3 +25,189 @@
 .text-glow {
   text-shadow: 0 0 10px currentColor;
 }
+
+/* ============================================
+   Character Animation Styles
+   RPG角色动画系统
+   ============================================ */
+
+/* 待机动画 - 上下浮动 */
+@keyframes idle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.animate-idle-bounce {
+  animation: idle-bounce 1.5s ease-in-out infinite;
+}
+
+/* 呼吸动画 */
+@keyframes breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.03); }
+}
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* 攻击抖动 */
+@keyframes attack-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px) rotate(-2deg); }
+  50% { transform: translateX(4px) rotate(2deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+}
+.animate-attack-shake {
+  animation: attack-shake 0.3s ease-in-out;
+}
+
+/* 受伤闪烁 */
+@keyframes hurt-flash {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.5; filter: brightness(2) hue-rotate(30deg); }
+}
+.animate-hurt-flash {
+  animation: hurt-flash 0.2s ease-in-out 2;
+}
+
+/* 技能发光 */
+@keyframes skill-glow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+  50% { filter: brightness(1.3) drop-shadow(0 0 10px currentColor); }
+}
+.animate-skill-glow {
+  animation: skill-glow 0.5s ease-in-out infinite;
+}
+
+/* 史莱姆跳动 */
+@keyframes blob-bounce {
+  0%, 100% { transform: scaleX(1) scaleY(1); }
+  25% { transform: scaleX(1.05) scaleY(0.95); }
+  50% { transform: scaleX(0.95) scaleY(1.05); }
+  75% { transform: scaleX(1.03) scaleY(0.97); }
+}
+.animate-blob-bounce {
+  animation: blob-bounce 1s ease-in-out infinite;
+}
+
+/* 火焰闪烁 */
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: 1; }
+  50% { transform: scaleY(1.1) translateY(-2px); opacity: 0.8; }
+}
+.animate-flame-flicker {
+  animation: flame-flicker 0.3s ease-in-out infinite;
+}
+
+/* 伤害数字漂浮 */
+@keyframes damage-float {
+  0% { 
+    opacity: 1; 
+    transform: translateY(0) translateX(-50%) scale(0.5); 
+  }
+  20% { 
+    transform: translateY(-10px) translateX(-50%) scale(1.2); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-40px) translateX(-50%) scale(1); 
+  }
+}
+
+/* 翅膀拍动 */
+@keyframes wing-flap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-10deg); }
+}
+
+/* BOSS登场 */
+@keyframes boss-enter {
+  0% { 
+    transform: scale(0) rotate(180deg); 
+    opacity: 0; 
+  }
+  60% { 
+    transform: scale(1.2) rotate(-10deg); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: scale(1) rotate(0deg); 
+    opacity: 1; 
+  }
+}
+.animate-boss-enter {
+  animation: boss-enter 0.8s ease-out forwards;
+}
+
+/* 死亡倒地 */
+@keyframes death-fall {
+  0% { 
+    transform: rotate(0deg) translateY(0); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: rotate(90deg) translateY(10px); 
+    opacity: 0.3; 
+  }
+}
+.animate-death-fall {
+  animation: death-fall 0.5s ease-in forwards;
+}
+
+/* 隐身闪烁 */
+@keyframes stealth-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+.animate-stealth-pulse {
+  animation: stealth-pulse 1.5s ease-in-out infinite;
+}
+
+/* 增益/减益图标动画 */
+@keyframes buff-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+.animate-buff-pulse {
+  animation: buff-pulse 1s ease-in-out infinite;
+}
+
+@keyframes debuff-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.animate-debuff-shake {
+  animation: debuff-shake 0.5s ease-in-out infinite;
+}
+
+/* 目标指示器 */
+@keyframes target-pulse {
+  0%, 100% { 
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+  50% { 
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 0 0 4px rgba(255, 0, 0, 0);
+  }
+}
+.animate-target-pulse {
+  animation: target-pulse 1s ease-in-out infinite;
+}
+
+/* 经验值/金币收集 */
+@keyframes collect-float {
+  0% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-30px) scale(0.5); 
+  }
+}
+.animate-collect-float {
+  animation: collect-float 0.8s ease-out forwards;
+}
+

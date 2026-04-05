@@ -127,6 +127,7 @@ func addCards(cards *[]Card, cardType string, count int) {
 }
 
 // Draw draws the next card from the deck
+// IMPORTANT: Each draw = 1 reflection round (太子旨意：皇上做10次=10轮)
 func (d *Deck) Draw() (*Card, error) {
 	if d.CurrentIndex >= len(d.Cards) {
 		return nil, fmt.Errorf("deck exhausted")
@@ -135,10 +136,11 @@ func (d *Deck) Draw() (*Card, error) {
 	card := d.Cards[d.CurrentIndex]
 	d.CurrentIndex++
 
-	// Check if cycle is complete
+	// 反省轮次：每次抽牌 = 1轮（不是抽完整副牌才算1轮）
+	d.CycleCount++
+
+	// 如果抽完了，重置索引进入下一轮
 	if d.CurrentIndex >= len(d.Cards) {
-		d.CycleCount++
-		// Reset for new cycle, but keep order (linear, not shuffled)
 		d.CurrentIndex = 0
 	}
 

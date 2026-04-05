@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Character } from '@/types';
+import { characterSave } from '@/lib/api';
 
 // ============================================================
 //  Pokemon像素风RPG游戏 - 剧情卡牌版
@@ -13,13 +15,13 @@ const MAP_WIDTH = 80;
 const MAP_HEIGHT = 60;
 
 const COLORS: Record<string, string> = {
-  grass1: '#7ECF7B', grass2: '#5FB55F', grassAccent: '#4A9A4A',
-  path1: '#C8A86B', path2: '#A88855',
-  wall1: '#8B8B9E', wall2: '#6B6B7E', wallTop: '#ABABBE',
-  water1: '#5A9AE8', water2: '#7AB8F5', waterShine: '#9AD4F5',
-  treeTrunk: '#6B4423', treeLeaves: '#2E8B2E', treeLeavesLight: '#3EAB3E',
-  building: '#B8860B', buildingRoof: '#8B0000', buildingDoor: '#654321',
-  skyTop: '#1a0533', skyBottom: '#2d1b4e',
+  grass1: '#4CAF50', grass2: '#66BB6A', grassAccent: '#81C784',
+  path1: '#D7CCC8', path2: '#BCAAA4',
+  wall1: '#78909C', wall2: '#607D8B', wallTop: '#90A4AE',
+  water1: '#29B6F6', water2: '#4FC3F7', waterShine: '#B3E5FC',
+  treeTrunk: '#795548', treeLeaves: '#388E3C', treeLeavesLight: '#4CAF50',
+  building: '#FFCA28', buildingRoof: '#E53935', buildingDoor: '#5D4037',
+  skyTop: '#E3F2FD', skyBottom: '#BBDEFB',
 };
 
 const TERRAIN = { GRASS: 0, PATH: 1, WALL: 2, WATER: 3, TREE: 4, BUILDING: 5, BRIDGE: 6, FLOWER: 7 };
@@ -572,24 +574,119 @@ const STORY_LINES = [
   { speaker: '发牌员', title: '酒馆门口', content: '嘿，冒险者！想来一把卡牌游戏吗？\n靠近我就可以开始游戏！' },
 ];
 
+// 地图区域设计（20个联通区域）
 function createWorldMap(): number[][] {
   const m: number[][] = [];
+  const rng = (x: number, y: number, seed: number): number => {
+    return ((x * 7919 + y * 6271 + seed * 104729) % 233280) / 233280;
+  };
   for (let y = 0; y < MAP_HEIGHT; y++) {
     const row: number[] = [];
     for (let x = 0; x < MAP_WIDTH; x++) {
+      const r = () => rng(x, y, Date.now() >> 10);
+      // === 边界 ===
       if (x === 0 || y === 0 || x === MAP_WIDTH - 1 || y === MAP_HEIGHT - 1) { row.push(TERRAIN.WALL); }
-      else if (x >= 32 && x <= 48 && y >= 28 && y <= 44) {
-        if ((x === 32 || x === 48 || y === 28 || y === 44) && !(x >= 37 && x <= 43 && y >= 34 && y <= 38)) row.push(TERRAIN.BUILDING);
-        else if (x >= 37 && x <= 43 && y >= 34 && y <= 38) row.push(TERRAIN.BUILDING);
-        else row.push(TERRAIN.PATH);
-      } else if (y >= 10 && y <= 14 && x >= 5 && x <= 75) {
-        row.push(x >= 30 && x <= 50 ? TERRAIN.BRIDGE : TERRAIN.WATER);
-      } else if (x >= 3 && x <= 18 && y >= 3 && y <= 18) {
-        const r = Math.random(); row.push(r < 0.5 ? TERRAIN.TREE : r < 0.75 ? TERRAIN.GRASS : TERRAIN.WALL);
-      } else if (x >= 60 && x <= 75 && y >= 3 && y <= 18) {
-        const r = Math.random(); row.push(r < 0.4 ? TERRAIN.FLOWER : r < 0.8 ? TERRAIN.GRASS : TERRAIN.TREE);
-      } else {
-        const r = Math.random(); row.push(r < 0.7 ? TERRAIN.GRASS : r < 0.88 ? TERRAIN.TREE : TERRAIN.WALL);
+      // 区域1: 平和镇中心 - 中央广场
+      else if (x >= 35 && x <= 45 && y >= 32 && y <= 42) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域2: 平和镇建筑群 - 东侧
+      else if (x >= 28 && x <= 34 && y >= 30 && y <= 44) {
+        const isBuilding = ((x + y) % 3 === 0) || ((x === 28 || x === 34 || y === 30 || y === 44));
+        row.push(isBuilding ? TERRAIN.BUILDING : TERRAIN.PATH);
+      }
+      // 区域3: 平和镇建筑群 - 西侧
+      else if (x >= 46 && x <= 52 && y >= 30 && y <= 44) {
+        const isBuilding = ((x + y) % 3 === 1) || ((x === 46 || x === 52 || y === 30 || y === 44));
+        row.push(isBuilding ? TERRAIN.BUILDING : TERRAIN.PATH);
+      }
+      // 区域4: 平和镇北门 - 通往北方
+      else if (x >= 37 && x <= 43 && y >= 24 && y <= 28) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域5: 平和镇南门 - 通往南方
+      else if (x >= 37 && x <= 43 && y >= 46 && y <= 50) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域6: 东门 - 通往东海
+      else if (x >= 53 && x <= 58 && y >= 35 && y <= 39) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域7: 西城门外 - 通往西山
+      else if (x >= 27 && x <= 30 && y >= 35 && y <= 39) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域8: 北部草原（新手区）- 羊蹄山脚
+      else if (x >= 20 && x <= 60 && y >= 10 && y <= 22) {
+        row.push(r() < 0.85 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域9: 北部森林（怪物区1）
+      else if (x >= 5 && x <= 18 && y >= 8 && y <= 20) {
+        row.push(r() < 0.65 ? TERRAIN.TREE : r() < 0.85 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域10: 北部花海
+      else if (x >= 56 && x <= 75 && y >= 5 && y <= 18) {
+        row.push(r() < 0.5 ? TERRAIN.FLOWER : r() < 0.9 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域11: 东海海岸 - 东南沿海
+      else if (x >= 70 && x <= 78 && y >= 10 && y <= 55) {
+        row.push(r() < 0.6 ? TERRAIN.WATER : r() < 0.85 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域12: 东海岸小路
+      else if (x >= 62 && x <= 68 && y >= 8 && y <= 55) {
+        row.push(r() < 0.75 ? TERRAIN.PATH : TERRAIN.GRASS);
+      }
+      // 区域13: 西山森林（怪物区2）
+      else if (x >= 2 && x <= 18 && y >= 25 && y <= 55) {
+        row.push(r() < 0.6 ? TERRAIN.GRASS : r() < 0.85 ? TERRAIN.TREE : TERRAIN.TREE);
+      }
+      // 区域14: 西山古道
+      else if (x >= 18 && x <= 26 && y >= 25 && y <= 50) {
+        row.push(r() < 0.8 ? TERRAIN.PATH : TERRAIN.GRASS);
+      }
+      // 区域15: 南部平原（主线推进区）
+      else if (x >= 20 && x <= 60 && y >= 50 && y <= 58) {
+        row.push(r() < 0.9 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域16: 东南沼泽（前哨区域）
+      else if (x >= 60 && x <= 68 && y >= 48 && y <= 58) {
+        row.push(r() < 0.4 ? TERRAIN.WATER : r() < 0.7 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域17: 羊蹄山脚下（主线剧情触发点）
+      else if (x >= 30 && x <= 50 && y >= 2 && y <= 8) {
+        row.push(r() < 0.6 ? TERRAIN.GRASS : r() < 0.85 ? TERRAIN.TREE : TERRAIN.PATH);
+      }
+      // 区域18: 中央河流
+      else if (x >= 26 && x <= 28 && y >= 5 && y <= 55) {
+        row.push(TERRAIN.WATER);
+      }
+      // 区域19: 中央河流桥梁
+      else if (x >= 25 && x <= 30 && y >= 30 && y <= 33) {
+        row.push(TERRAIN.BRIDGE);
+      }
+      // 区域20: 城外荒野（自由探索区）
+      else if (x >= 55 && x <= 70 && y >= 22 && y <= 48) {
+        row.push(r() < 0.7 ? TERRAIN.GRASS : r() < 0.9 ? TERRAIN.TREE : TERRAIN.TREE);
+      }
+      // 区域21: 森林湖泊
+      else if (x >= 8 && x <= 16 && y >= 18 && y <= 24) {
+        row.push(r() < 0.5 ? TERRAIN.WATER : r() < 0.85 ? TERRAIN.GRASS : TERRAIN.TREE);
+      }
+      // 区域22: 隐秘山谷
+      else if (x >= 1 && x <= 12 && y >= 1 && y <= 7) {
+        row.push(r() < 0.5 ? TERRAIN.GRASS : r() < 0.8 ? TERRAIN.TREE : TERRAIN.PATH);
+      }
+      // 区域23: 南门外的古道
+      else if (x >= 30 && x <= 50 && y >= 48 && y <= 52) {
+        row.push(TERRAIN.PATH);
+      }
+      // 区域24: 西北荒原（高级区）
+      else if (x >= 1 && x <= 18 && y >= 50 && y <= 58) {
+        row.push(r() < 0.6 ? TERRAIN.GRASS : r() < 0.85 ? TERRAIN.TREE : TERRAIN.WALL);
+      }
+      // 区域25: 其他草地
+      else {
+        row.push(r() < 0.8 ? TERRAIN.GRASS : TERRAIN.TREE);
       }
     }
     m.push(row);
@@ -647,24 +744,38 @@ function renderEventCard(c: EventCard, compact = false) {
   );
 }
 
-export default function ImprovedRPG() {
+export default function ImprovedRPG({ character }: { character?: Character }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 480 });
-  const [gameState, setGameState] = useState<'story' | 'playing' | 'gameover' | 'victory'>('story');
+  // 初始化：看过剧情就不再展示
+  const [gameState, setGameState] = useState<'story' | 'playing' | 'gameover' | 'victory'>(
+    character?.has_seen_intro ? 'playing' : 'story'
+  );
   const [storyIdx, setStoryIdx] = useState(0);
   const [showText, setShowText] = useState('');
   const [typingDone, setTypingDone] = useState(false);
 
+  // 从角色存档初始化玩家状态
   const [player, setPlayer] = useState({
-    x: 40, y: 36, hp: 100, maxHp: 100, mp: 50, maxMp: 50,
-    energy: 3, maxEnergy: 5, level: 1, exp: 0, expToLevel: 100, atk: 25, def: 10,
+    x: character?.position?.x || 40,
+    y: character?.position?.y || 40,
+    hp: character?.health?.current || character?.level ? (character!.level * 30 + 70) : 100,
+    maxHp: character?.health?.max || character?.level ? (character!.level * 30 + 70) : 100,
+    mp: character?.spirit?.current || 50,
+    maxMp: character?.spirit?.max || 50,
+    energy: 3, maxEnergy: 5,
+    level: character?.level || 1,
+    exp: character?.xp || 0,
+    expToLevel: character?.level ? character.level * 100 : 100,
+    atk: character?.strength || 25,
+    def: character?.defense || 10,
     facing: 'down' as 'up' | 'down' | 'left' | 'right',
     isAttacking: false, attackFrame: 0, cooldown: 0, invincible: 0, atkBuff: 0,
-    gold: 0,
+    gold: character?.gold || 0,
   });
 
-  const [camera, setCamera] = useState({ x: 30, y: 28 });
+  const [camera, setCamera] = useState({ x: 30, y: 30 });
   const [animFrame, setAnimFrame] = useState(0);
 
   const [monsters, setMonsters] = useState<Array<{
@@ -680,7 +791,8 @@ export default function ImprovedRPG() {
     { id: 7, x: 70, y: 50, hp: 100, maxHp: 100, atk: 20, name: '巨型史莱姆', type: 'slime', state: 'patrol', dir: 1, cd: 0, dropCard: true, isElite: true },
   ]);
 
-  const [treasures] = useState([
+  const [attackWarning, setAttackWarning] = useState<number>(0);
+  const [treasures, setTreasures] = useState([
     { id: 1, x: 20, y: 22, opened: false },
     { id: 2, x: 65, y: 15, opened: false },
     { id: 3, x: 70, y: 35, opened: false },
@@ -700,6 +812,8 @@ export default function ImprovedRPG() {
   const [dealerCards, setDealerCards] = useState<EventCard[]>([]);
 
   const keysRef = useRef<Set<string>>(new Set());
+  // 点击移动目标
+  const [clickTarget, setClickTarget] = useState<{ x: number; y: number } | null>(null);
   const mapDataRef = useRef<number[][]>(createWorldMap());
 
   useEffect(() => {
@@ -798,10 +912,27 @@ export default function ImprovedRPG() {
       keysRef.current.add(e.key.toLowerCase());
       if (e.key === 'j' || e.key === 'J') attack();
       if (e.key === ' ') { e.preventDefault(); dodge(); }
-      if ((e.key === 'e' || e.key === 'E') && nearbyDealer) {
-        const cards = getCardsFromDealer(nearbyDealer);
-        setDealerCards(cards);
-        setShowCardGame(true);
+      // E键交互：发牌员 或 宝箱
+      if ((e.key === 'e' || e.key === 'E')) {
+        if (nearbyDealer) {
+          const dealerHints = [
+            `发牌员 ${nearbyDealer.name} 注视着你..."`,
+            `在这个世界上，命运就像一副牌——你永远不知道下一张会抽到什么。`,
+            `羊蹄山的传说还在继续...但时机未到。`,
+            `继续探索吧，旅人。你会遇到该遇到的人，发生该发生的事。`,
+            `有时候，最重要的不是目的地，而是路上的风景。`,
+          ];
+          alert(dealerHints[Math.floor(Math.random() * dealerHints.length)]);
+        } else if (interactionHint && interactionHint.startsWith('treasure_')) {
+          // 开启宝箱
+          const treasureId = interactionHint.split('_')[1];
+          const tid = parseInt(treasureId);
+          setTreasures(ts => ts.map(t => t.id === tid ? { ...t, opened: true } : t));
+          const reward = ALL_EVENT_CARDS[Math.floor(Math.random() * 3)]; // 随机奖励
+          setCardRewards([reward]);
+          setShowRewards(true);
+          setClickTarget(null);
+        }
       }
     };
     const onUp = (e: KeyboardEvent) => keysRef.current.delete(e.key.toLowerCase());
@@ -831,11 +962,39 @@ export default function ImprovedRPG() {
         setAnimFrame(f => f + 1);
 
         let dx = 0, dy = 0;
+        // 点击移动：如果有目标，持续向目标移动
+        if (clickTarget && !keysRef.current.has('w') && !keysRef.current.has('a') && !keysRef.current.has('s') && !keysRef.current.has('d')) {
+          const dx = clickTarget.x - player.x;
+          const dy = clickTarget.y - player.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 0.5) {
+            setClickTarget(null); // 到达目标
+          } else {
+            const moveX = dx / dist;
+            const moveY = dy / dist;
+            // 设置facing方向
+            if (Math.abs(moveX) > Math.abs(moveY)) {
+              setPlayer(p => ({ ...p, facing: moveX > 0 ? 'right' : 'left' }));
+            } else {
+              setPlayer(p => ({ ...p, facing: moveY > 0 ? 'down' : 'up' }));
+            }
+          }
+        }
         if (keysRef.current.has('w') || keysRef.current.has('arrowup')) { dy = -1; setPlayer(p => ({ ...p, facing: 'up' })); }
         if (keysRef.current.has('s') || keysRef.current.has('arrowdown')) { dy = 1; setPlayer(p => ({ ...p, facing: 'down' })); }
         if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) { dx = -1; setPlayer(p => ({ ...p, facing: 'left' })); }
         if (keysRef.current.has('d') || keysRef.current.has('arrowright')) { dx = 1; setPlayer(p => ({ ...p, facing: 'right' })); }
 
+        // 点击移动目标移动
+        if (clickTarget && (dx === 0 && dy === 0)) {
+          const cdx = clickTarget.x - player.x;
+          const cdy = clickTarget.y - player.y;
+          const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+          if (cdist >= 0.5) {
+            dx = cdx / cdist;
+            dy = cdy / cdist;
+          }
+        }
         if (dx !== 0 || dy !== 0) {
           setPlayer(p => {
             let nx = p.x + dx * 0.08, ny = p.y + dy * 0.08;
@@ -854,7 +1013,10 @@ export default function ImprovedRPG() {
           return p;
         });
 
-        setCamera(c => ({ x: Math.max(0, Math.min(MAP_WIDTH - 25, player.x - 12)), y: Math.max(0, Math.min(MAP_HEIGHT - 15, player.y - 7)) }));
+        setCamera(c => ({ 
+          x: Math.max(0, Math.min(MAP_WIDTH - Math.ceil(dimensions.width / TILE_SIZE), player.x - Math.ceil(dimensions.width / TILE_SIZE / 2))), 
+          y: Math.max(0, Math.min(MAP_HEIGHT - Math.ceil(dimensions.height / TILE_SIZE), player.y - Math.ceil(dimensions.height / TILE_SIZE / 2))) 
+        }));
 
         setMonsters(mons => mons.map(m => {
           if (m.state === 'dead') return m;
@@ -890,223 +1052,322 @@ export default function ImprovedRPG() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [gameState, player, addDmg]);
+  }, [gameState, player, addDmg, dimensions]);
 
   // 绘制函数
-  const drawGrassTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
-    ctx.fillStyle = COLORS.grass1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    const seed = (tileX * 7 + tileY * 13) % 5;
-    ctx.fillStyle = COLORS.grass2;
-    for (let i = 0; i < 4; i++) {
-      const gx = sx + ((seed + i * 3) % 28) + 2;
-      const gy = sy + ((seed + i * 7) % 28) + 2;
-      const sway = Math.sin(frame * 0.05 + i + tileX * 0.3) * 1;
-      ctx.fillRect(gx + sway, gy, 2, 4);
-    }
-    ctx.fillStyle = COLORS.grassAccent;
-    if (seed > 1) ctx.fillRect(sx + 15, sy + 8, 2, 6);
-  };
 
-  const drawPathTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number) => {
-    ctx.fillStyle = COLORS.path1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.path2;
-    ctx.fillRect(sx, sy, TILE_SIZE, 1); ctx.fillRect(sx, sy, 1, TILE_SIZE);
-    ctx.fillRect(sx + 6, sy + 6, 3, 3); ctx.fillRect(sx + 18, sy + 12, 4, 3); ctx.fillRect(sx + 10, sy + 22, 3, 3);
-  };
-
-  const drawWallTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number) => {
-    ctx.fillStyle = COLORS.wall1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.wall2;
-    ctx.fillRect(sx, sy, TILE_SIZE, 1); ctx.fillRect(sx, sy, 1, TILE_SIZE);
-    ctx.fillRect(sx + 16, sy, 1, 16); ctx.fillRect(sx, sy + 16, 16, 1);
-    ctx.fillStyle = COLORS.wallTop;
-    ctx.fillRect(sx + 2, sy + 2, 12, 2); ctx.fillRect(sx + 18, sy + 2, 12, 2);
-    ctx.fillRect(sx + 2, sy + 18, 12, 2); ctx.fillRect(sx + 18, sy + 18, 12, 2);
-  };
-
-  const drawWaterTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number) => {
-    ctx.fillStyle = COLORS.water1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.water2;
-    const wave = Math.sin(frame * 0.1 + sx * 0.1) * 4;
-    ctx.fillRect(sx + wave, sy + 10, 16, 2);
-    ctx.fillRect(sx - wave / 2 + 4, sy + 22, 12, 2);
-    ctx.fillStyle = COLORS.waterShine;
-    ctx.fillRect(sx + 8, sy + 4, 6, 2); ctx.fillRect(sx + 20, sy + 16, 4, 2);
-  };
-
-  const drawBridgeTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number) => {
-    ctx.fillStyle = COLORS.water1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.path1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.treeTrunk;
-    ctx.fillRect(sx, sy + 2, TILE_SIZE, 3); ctx.fillRect(sx, sy + TILE_SIZE - 5, TILE_SIZE, 3);
-    ctx.fillStyle = COLORS.path2;
-    ctx.fillRect(sx + 4, sy + 8, 6, 2); ctx.fillRect(sx + 20, sy + 20, 6, 2);
-  };
-
-  const drawTreeTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number) => {
-    ctx.fillStyle = COLORS.grass1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.treeTrunk;
-    ctx.fillRect(sx + 12, sy + 18, 8, 14);
-    ctx.fillStyle = COLORS.treeLeaves;
-    ctx.beginPath(); ctx.arc(sx + 16, sy + 12, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = COLORS.treeLeavesLight;
-    ctx.beginPath(); ctx.arc(sx + 12, sy + 8, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#4abd4a';
-    ctx.beginPath(); ctx.arc(sx + 20, sy + 14, 6, 0, Math.PI * 2); ctx.fill();
-  };
-
-  const drawFlowerTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
-    ctx.fillStyle = COLORS.grass1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    const seed = (tileX * 11 + tileY * 17) % 4;
-    const flowerColors = ['#FF6B6B', '#FFE66D', '#C56CF0', '#FF9FF3'];
-    for (let i = 0; i < 3; i++) {
-      const fx = sx + ((seed + i * 5) % 24) + 4;
-      const fy = sy + ((seed + i * 7) % 24) + 4;
-      const sway = Math.sin(frame * 0.03 + i + tileX) * 1;
-      ctx.fillStyle = '#4A9A4A';
-      ctx.fillRect(fx + 1, fy + 4, 2, 6);
-      ctx.fillStyle = flowerColors[(seed + i) % flowerColors.length];
-      ctx.beginPath(); ctx.arc(fx + sway, fy + 2, 4, 0, Math.PI * 2); ctx.fill();
-    }
-  };
-
-  const drawBuildingTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number) => {
-    ctx.fillStyle = COLORS.path1;
-    ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    ctx.fillStyle = COLORS.building;
-    ctx.fillRect(sx + 2, sy + 10, 28, 22);
-    ctx.fillStyle = COLORS.buildingRoof;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy + 12); ctx.lineTo(sx + 16, sy); ctx.lineTo(sx + 32, sy + 12);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = COLORS.buildingDoor;
-    ctx.fillRect(sx + 12, sy + 18, 8, 14);
-    ctx.fillStyle = '#8B6914';
-    ctx.fillRect(sx + 14, sy + 22, 4, 2);
-  };
-
+  // Map tile renderer (delegates to Pokemon-style tile functions)
   const drawTile = (ctx: CanvasRenderingContext2D, terrain: number, sx: number, sy: number, mx: number, my: number, frame: number) => {
     switch (terrain) {
       case TERRAIN.GRASS: drawGrassTile(ctx, sx, sy, mx, my, frame); break;
-      case TERRAIN.PATH: drawPathTile(ctx, sx, sy); break;
-      case TERRAIN.WALL: drawWallTile(ctx, sx, sy); break;
-      case TERRAIN.WATER: drawWaterTile(ctx, sx, sy, frame); break;
-      case TERRAIN.TREE: drawTreeTile(ctx, sx, sy); break;
-      case TERRAIN.BUILDING: drawBuildingTile(ctx, sx, sy); break;
-      case TERRAIN.BRIDGE: drawBridgeTile(ctx, sx, sy); break;
+      case TERRAIN.PATH: drawPathTile(ctx, sx, sy, mx, my); break;
+      case TERRAIN.WALL: drawWallTile(ctx, sx, sy, mx, my); break;
+      case TERRAIN.WATER: drawWaterTile(ctx, sx, sy, mx, my, frame); break;
+      case TERRAIN.TREE: drawTreeTile(ctx, sx, sy, mx, my, frame); break;
+      case TERRAIN.BUILDING: drawBuildingTile(ctx, sx, sy, mx, my); break;
+      case TERRAIN.BRIDGE: drawBridgeTile(ctx, sx, sy, mx, my); break;
       case TERRAIN.FLOWER: drawFlowerTile(ctx, sx, sy, mx, my, frame); break;
       default: drawGrassTile(ctx, sx, sy, mx, my, frame);
     }
   };
 
-  // ===================== 精灵绘制 =====================
-  const drawPlayerSprite = (ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) => {
-    const bounce = Math.sin(frame * 0.15) * 2;
-    if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
-    ctx.fillStyle = '#2962D4';
-    ctx.fillRect(sx - 10, sy - 20 + bounce, 20, 24);
-    ctx.fillStyle = '#42A5F5';
-    ctx.fillRect(sx - 8, sy - 18 + bounce, 4, 8);
-    ctx.fillStyle = '#FFCC80';
-    ctx.beginPath(); ctx.arc(sx, sy - 28 + bounce, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#424242';
-    ctx.beginPath(); ctx.arc(sx, sy - 32 + bounce, 9, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = '#212121';
-    ctx.fillRect(sx - 5, sy - 30 + bounce, 3, 3);
-    ctx.fillRect(sx + 2, sy - 30 + bounce, 3, 3);
-    ctx.fillStyle = '#5D4037';
-    ctx.fillRect(sx - 8, sy + 4 + bounce, 6, 8);
-    ctx.fillRect(sx + 2, sy + 4 + bounce, 6, 8);
-    if (facing === 'right' || facing === 'down' || isAttacking) {
-      ctx.fillStyle = '#9E9E9E';
-      ctx.fillRect(sx + 12, sy - 18 + bounce, 4, 24);
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(sx + 10, sy - 14 + bounce, 8, 4);
-      if (isAttacking) {
-        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx, sy - 8 + bounce, 28, 0, Math.PI * 2); ctx.stroke();
-      }
-    } else if (facing === 'left') {
-      ctx.fillStyle = '#9E9E9E';
-      ctx.fillRect(sx - 16, sy - 18 + bounce, 4, 24);
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(sx - 18, sy - 14 + bounce, 8, 4);
-    } else if (facing === 'up') {
-      ctx.fillStyle = '#9E9E9E';
-      ctx.fillRect(sx - 2, sy - 38 + bounce, 4, 18);
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(sx - 4, sy - 26 + bounce, 8, 4);
+  
+  // === POKEMON-QUALITY PIXEL MAP TILES ===
+  // Pokemon GBC-style 16x16 pixel tiles with palette-based rendering
+
+  const T = {
+    GD: '#2d5a27', GB: '#4a8a37', GL: '#6ab86a', GA: '#8ada8a',
+    PD: '#8a6a4a', PB: '#c9a86c', PL: '#d4bc8a',
+    WD: '#1a4a7a', WB: '#2a6aaa', WL: '#4a9aca', WSh: '#9adaee',
+    BD: '#5a5a6a', BB: '#8a8a9a', BL: '#c0c0d0',
+    TD: '#5a3a1a', TB: '#3a7a2a', TL: '#5a9a4a',
+    FL: '#ff6a6a', FY: '#ffca6a', FB: '#6a9aff',
+  };
+
+  const drawGrassTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
+    const v = (tileX * 7 + tileY * 13) % 3;
+    const dots = v === 0 ? [[3,2,3,2],[12,4,3,2],[5,9,3,2],[13,11,3,2],[2,14,2,2],[10,15,3,2]]
+                : v === 1 ? [[5,1,4,2],[1,6,3,2],[11,8,2,2],[4,12,4,2],[14,14,3,2]]
+                : [[2,3,3,2],[9,5,4,2],[1,11,3,2],[12,13,2,2],[6,15,4,2]];
+    for (const [px, py, pw, ph] of dots) {
+      ctx.fillStyle = py < 7 ? T.GD : T.GL;
+      ctx.fillRect(sx + px, sy + py, pw, ph);
+    }
+    // Occasional flower
+    if ((tileX * 3 + tileY * 7) % 11 === 0) {
+      ctx.fillStyle = [T.FL, T.FY, T.FB][(tileX + tileY) % 3];
+      ctx.fillRect(sx + 7, sy + 5, 2, 2);
+      ctx.fillStyle = '#fff'; ctx.fillRect(sx + 8, sy + 6, 1, 1);
     }
   };
+
+  const drawPathTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number) => {
+    ctx.fillStyle = T.PB; ctx.fillRect(sx, sy, 16, 16);
+    const v = (tileX * 11 + tileY * 17) % 3;
+    const dots = v === 0 ? [[3,2,4,2],[10,4,3,2],[2,8,3,2],[12,10,2,2],[5,13,4,2]]
+                : v === 1 ? [[2,1,3,2],[11,3,4,2],[4,7,3,2],[13,9,2,2],[1,14,4,2]]
+                : [[5,2,3,2],[1,6,4,2],[9,8,3,2],[14,11,2,2],[3,14,3,2]];
+    for (const [px, py, pw, ph] of dots) {
+      ctx.fillStyle = py < 8 ? T.PD : T.PL;
+      ctx.fillRect(sx + px, sy + py, pw, ph);
+    }
+  };
+
+  const drawWallTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number) => {
+    ctx.fillStyle = T.BB; ctx.fillRect(sx, sy, 16, 16);
+    // Brick horizontal lines
+    ctx.fillStyle = T.BD;
+    ctx.fillRect(sx, sy + 3, 16, 1); ctx.fillRect(sx, sy + 7, 16, 1); ctx.fillRect(sx, sy + 11, 16, 1); ctx.fillRect(sx, sy + 15, 16, 1);
+    // Brick vertical offsets
+    ctx.fillRect(sx + 8, sy, 1, 3); ctx.fillRect(sx, sy, 1, 3);
+    ctx.fillRect(sx + 4, sy + 4, 1, 3); ctx.fillRect(sx + 12, sy + 4, 1, 3);
+    ctx.fillRect(sx + 8, sy + 8, 1, 3); ctx.fillRect(sx, sy + 8, 1, 3);
+    ctx.fillRect(sx + 4, sy + 12, 1, 3); ctx.fillRect(sx + 12, sy + 12, 1, 3);
+    // Highlight
+    ctx.fillStyle = T.BL; ctx.fillRect(sx, sy, 16, 1);
+    ctx.fillRect(sx + 8, sy + 4, 4, 1); ctx.fillRect(sx + 4, sy + 8, 4, 1); ctx.fillRect(sx + 12, sy + 12, 4, 1);
+  };
+
+  const drawWaterTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    ctx.fillStyle = T.WD; ctx.fillRect(sx, sy, 16, 16);
+    const wf = (frame >> 3) % 2;
+    const hl = wf === 0 ? [[3,2,4,2],[12,3,3,2],[6,8,4,2],[1,12,3,2],[13,13,2,2]]
+               : [[2,1,3,2],[11,2,4,2],[5,7,3,2],[14,9,2,2],[3,14,4,2]];
+    for (const [px, py, pw, ph] of hl) {
+      ctx.fillStyle = py < 7 ? T.WL : T.WSh;
+      ctx.fillRect(sx + px, sy + py, pw, ph);
+    }
+    ctx.fillStyle = T.WD;
+    ctx.fillRect(sx, sy + 5 + wf, 16, 1); ctx.fillRect(sx, sy + 12 - wf, 16, 1);
+  };
+
+  const drawBridgeTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number) => {
+    ctx.fillStyle = T.PB; ctx.fillRect(sx, sy, 16, 16);
+    ctx.fillStyle = T.PD;
+    ctx.fillRect(sx, sy + 3, 16, 1); ctx.fillRect(sx, sy + 7, 16, 1); ctx.fillRect(sx, sy + 11, 16, 1); ctx.fillRect(sx, sy + 15, 16, 1);
+    // Plank details
+    ctx.fillStyle = '#a08060';
+    ctx.fillRect(sx + 1, sy + 1, 6, 4); ctx.fillRect(sx + 9, sy + 1, 6, 4);
+    ctx.fillRect(sx + 3, sy + 5, 5, 4); ctx.fillRect(sx + 11, sy + 5, 4, 4);
+    ctx.fillRect(sx + 1, sy + 9, 6, 4); ctx.fillRect(sx + 9, sy + 9, 6, 4);
+    ctx.fillRect(sx + 3, sy + 13, 5, 3); ctx.fillRect(sx + 11, sy + 13, 4, 3);
+  };
+
+  const drawTreeTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    // Ground
+    ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
+    // Trunk
+    ctx.fillStyle = T.TD; ctx.fillRect(sx + 6, sy + 10, 4, 6);
+    // Canopy layers (Pokemon-style)
+    ctx.fillStyle = T.TB;
+    ctx.beginPath(); ctx.arc(sx + 8, sy + 7, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = T.TL;
+    ctx.beginPath(); ctx.arc(sx + 6, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 10, sy + 5, 3, 0, Math.PI * 2); ctx.fill();
+    // Dark edge
+    ctx.strokeStyle = T.TD; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(sx + 8, sy + 7, 7, 0, Math.PI * 2); ctx.stroke();
+  };
+
+  const drawFlowerTile = (ctx: CanvasRenderingContext2D, sx: number, sy: number, tileX: number, tileY: number, frame: number) => {
+    ctx.fillStyle = T.GB; ctx.fillRect(sx, sy, 16, 16);
+    const v = (tileX * 7 + tileY * 11) % 4;
+    const colors = [T.FL, T.FY, T.FB, '#fff'];
+    // Draw flowers
+    for (let i = 0; i < 3; i++) {
+      const fx = 2 + ((i * 5 + v * 3) % 12);
+      const fy = 2 + ((i * 7 + v * 5) % 10);
+      ctx.fillStyle = colors[(i + v) % 4];
+      ctx.fillRect(sx + fx, sy + fy, 2, 2);
+      ctx.fillStyle = '#fff'; ctx.fillRect(sx + fx, sy + fy, 1, 1);
+    }
+    // Grass dots
+    ctx.fillStyle = T.GD;
+    ctx.fillRect(sx + 4, sy + 2, 2, 2); ctx.fillRect(sx + 12, sy + 8, 2, 2);
+    ctx.fillStyle = T.GL;
+    ctx.fillRect(sx + 2, sy + 12, 3, 2); ctx.fillRect(sx + 11, sy + 13, 2, 2);
+  };
+
+const drawPlayerSprite = (ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) => {
+    const bounce = Math.sin(frame * 0.15) * 2;
+    if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 14, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Body - blue tunic (Pokemon trainer style)
+    ctx.fillStyle = '#2962D4'; ctx.strokeRect(sx - 8, sy - 18 + bounce, 16, 18); ctx.fill();
+    // Belt
+    ctx.fillStyle = '#8B4513'; ctx.fillRect(sx - 8, sy - 4 + bounce, 16, 4);
+    // Head
+    ctx.fillStyle = '#FFCC80'; ctx.strokeRect(sx - 7, sy - 28 + bounce, 14, 10); ctx.fill();
+    // Hair (brown)
+    ctx.fillStyle = '#8B4513'; ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 4);
+    ctx.strokeRect(sx - 7, sy - 28 + bounce, 14, 4);
+    // Eyes - distinct pixel eyes
+    ctx.fillStyle = '#1a1a1a';
+    if (facing === 'down' || facing === 'right' || facing === 'left') {
+      ctx.fillRect(sx - 4, sy - 22 + bounce, 3, 3);
+      ctx.fillRect(sx + 1, sy - 22 + bounce, 3, 3);
+    }
+    // Hat/cap
+    ctx.fillStyle = '#E53935'; ctx.strokeRect(sx - 8, sy - 30 + bounce, 16, 4); ctx.fill();
+    // Legs
+    ctx.fillStyle = '#1565C0'; ctx.strokeRect(sx - 6, sy + 2 + bounce, 5, 8); ctx.fill();
+    ctx.strokeRect(sx + 1, sy + 2 + bounce, 5, 8); ctx.fill();
+    // Shoes
+    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx - 7, sy + 8 + bounce, 6, 4);
+    ctx.fillRect(sx + 1, sy + 8 + bounce, 6, 4);
+    // Sword (right side)
+    if (facing === 'right' || facing === 'down' || isAttacking) {
+      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx + 12, sy - 16 + bounce, 3, 16); ctx.fill();
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx + 10, sy - 16 + bounce, 7, 4);
+      if (isAttacking) {
+        ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy - 6 + bounce, 28, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (facing === 'left') {
+      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx - 15, sy - 16 + bounce, 3, 16); ctx.fill();
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx - 17, sy - 16 + bounce, 7, 4);
+    } else if (facing === 'up') {
+      ctx.fillStyle = '#9E9E9E'; ctx.strokeRect(sx - 1, sy - 36 + bounce, 3, 16); ctx.fill();
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(sx - 3, sy - 24 + bounce, 7, 4);
+    }
+  };;;
 
   const drawSlime = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const squish = Math.sin(frame * 0.15) * 3;
-    const scale = isElite ? 1.5 : 1;
-    ctx.fillStyle = isElite ? '#9C27B0' : '#69F0AE';
-    ctx.beginPath(); ctx.ellipse(sx, sy, (14 + squish) * scale, (12 - squish / 2) * scale, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = isElite ? '#CE93D8' : '#B9F6CA';
-    ctx.beginPath(); ctx.ellipse(sx - 4 * scale, sy - 4 * scale, 4 * scale, 3 * scale, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx - 5 * scale, sy - 2 * scale, 3 * scale, 3 * scale);
-    ctx.fillRect(sx + 2 * scale, sy - 2 * scale, 3 * scale, 3 * scale);
+    const scale = isElite ? 1.3 : 1;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 10 * scale, (10 + squish) * scale, 4 * scale, 0, 0, Math.PI * 2); ctx.fill();
+    // Body - Pokemon-style jelly
+    ctx.fillStyle = isElite ? '#7B1FA2' : '#43A047';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, (12 + squish) * scale, (10 - squish / 2) * scale, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Dark outline (Pokemon style)
+    ctx.strokeStyle = isElite ? '#4A148C' : '#2E7D32';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, (12 + squish) * scale, (10 - squish / 2) * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Highlight blob (top-left, Pokemon-style)
+    ctx.fillStyle = isElite ? '#E1BEE7' : '#C8E6C9';
+    ctx.beginPath(); ctx.ellipse(sx - 4 * scale, sy - 3 * scale, 4 * scale, 3 * scale, -0.3, 0, Math.PI * 2); ctx.fill();
+    // Small highlight
+    ctx.fillStyle = isElite ? '#F3E5F5' : '#E8F5E9';
+    ctx.fillRect(sx - 5 * scale, sy - 5 * scale, 2 * scale, 2 * scale);
+    // Eyes (big anime-style, Pokemon-like)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(sx - 4 * scale, sy - 1 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 4 * scale, sy - 1 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(sx - 3 * scale, sy - 1 * scale, 1.5 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 3 * scale, sy - 1 * scale, 1.5 * scale, 0, Math.PI * 2); ctx.fill();
+    // Mouth
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(sx, sy + 4 * scale, 2 * scale, 0, Math.PI); ctx.fill();
+    // Elite star
     if (isElite) {
-      ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillText('★', sx - 4, sy - 18);
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 12px sans-serif'; ctx.fillText('★', sx - 5, sy - 14);
     }
-  };
+  };;;
 
   const drawWolf = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
-    const run = Math.abs(Math.sin(frame * 0.3)) * 4;
-    const col = isElite ? '#374151' : '#757575';
-    ctx.fillStyle = col;
-    ctx.fillRect(sx - 16, sy - 10, 32, 16);
-    ctx.beginPath();
-    ctx.moveTo(sx + 16, sy - 14); ctx.lineTo(sx + 28, sy - 8); ctx.lineTo(sx + 16, sy - 4);
-    ctx.fill();
-    ctx.fillStyle = isElite ? '#1F2937' : '#4B5563';
-    ctx.fillRect(sx - 12, sy + 6, 6, 8 - run);
-    ctx.fillRect(sx + 6, sy + 6, 6, 8 + run);
-    ctx.fillStyle = isElite ? '#EF4444' : '#F44336';
-    ctx.fillRect(sx + 20, sy - 10, 3, 3);
+    const run = Math.abs(Math.sin(frame * 0.3)) * 3;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 12, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Body
+    ctx.fillStyle = isElite ? '#37474F' : '#795548';
+    ctx.fillRect(sx - 14, sy - 8, 28, 16); ctx.strokeRect(sx - 14, sy - 8, 28, 16);
+    // Fur detail
+    ctx.fillStyle = isElite ? '#546E7A' : '#8D6E63';
+    ctx.fillRect(sx - 10, sy - 6, 8, 4);
+    ctx.fillRect(sx + 2, sy - 6, 8, 4);
+    // Head
+    ctx.fillStyle = isElite ? '#37474F' : '#795548';
+    ctx.beginPath(); ctx.arc(sx, sy - 14, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Snout
+    ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
+    ctx.fillRect(sx - 4, sy - 10, 10, 6); ctx.strokeRect(sx - 4, sy - 10, 10, 6);
+    // Nose
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 2, sy - 10, 4, 3);
+    // Eyes (red, menacing)
+    ctx.fillStyle = isElite ? '#FF1744' : '#F44336';
+    ctx.beginPath(); ctx.arc(sx - 4, sy - 16, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 4, sy - 16, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 5, sy - 17, 1, 1); ctx.fillRect(sx + 3, sy - 17, 1, 1);
+    // Ears (pointed)
+    ctx.fillStyle = isElite ? '#37474F' : '#795548';
+    ctx.beginPath(); ctx.moveTo(sx - 8, sy - 20); ctx.lineTo(sx - 14, sy - 28); ctx.lineTo(sx - 2, sy - 22); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx + 8, sy - 20); ctx.lineTo(sx + 14, sy - 28); ctx.lineTo(sx + 2, sy - 22); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Tail
+    ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
+    ctx.beginPath(); ctx.moveTo(sx - 14, sy - 4); ctx.lineTo(sx - 22, sy - 10); ctx.lineTo(sx - 14, sy - 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Legs
+    ctx.fillStyle = isElite ? '#263238' : '#5D4037';
+    ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run); ctx.strokeRect(sx - 10, sy + 8 - run, 5, 6 + run);
+    ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run); ctx.strokeRect(sx + 5, sy + 8 + run, 5, 6 - run);
+    // Elite aura
     if (isElite) {
-      ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillText('★', sx - 18, sy - 14);
+      ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
     }
-  };
+  };;
 
   const drawGoblin = (ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) => {
     const hop = Math.abs(Math.sin(frame * 0.2)) * 3;
-    const col = isElite ? '#1B5E20' : '#66BB6A';
-    ctx.fillStyle = col;
-    ctx.fillRect(sx - 8, sy - 16 + hop, 16, 20);
-    ctx.beginPath(); ctx.arc(sx, sy - 22 + hop, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(sx - 10, sy - 26 + hop); ctx.lineTo(sx - 16, sy - 34 + hop); ctx.lineTo(sx - 6, sy - 22 + hop);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(sx + 10, sy - 26 + hop); ctx.lineTo(sx + 16, sy - 34 + hop); ctx.lineTo(sx + 6, sy - 22 + hop);
-    ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 12, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Body (small, cartoon proportion)
+    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
+    ctx.fillRect(sx - 7, sy - 12 + hop, 14, 16); ctx.strokeRect(sx - 7, sy - 12 + hop, 14, 16);
+    // Head (big ears, small face)
+    ctx.fillStyle = isElite ? '#2E7D32' : '#7CB342';
+    ctx.beginPath(); ctx.arc(sx, sy - 18 + hop, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Big pointy ears
+    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx - 9, sy - 18 + hop); ctx.lineTo(sx - 18, sy - 30 + hop); ctx.lineTo(sx - 5, sy - 16 + hop); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx + 9, sy - 18 + hop); ctx.lineTo(sx + 18, sy - 30 + hop); ctx.lineTo(sx + 5, sy - 16 + hop); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Ear inner
+    ctx.fillStyle = isElite ? '#4CAF50' : '#AED581';
+    ctx.beginPath(); ctx.moveTo(sx - 10, sy - 18 + hop); ctx.lineTo(sx - 14, sy - 26 + hop); ctx.lineTo(sx - 7, sy - 17 + hop); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(sx + 10, sy - 18 + hop); ctx.lineTo(sx + 14, sy - 26 + hop); ctx.lineTo(sx + 7, sy - 17 + hop); ctx.closePath(); ctx.fill();
+    // Eyes (big yellow, menacing)
     ctx.fillStyle = '#FFEB3B';
-    ctx.fillRect(sx - 5, sy - 24 + hop, 4, 4);
-    ctx.fillRect(sx + 1, sy - 24 + hop, 4, 4);
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(sx - 4, sy - 23 + hop, 1.5, 0, Math.PI * 2); ctx.arc(sx + 4, sy - 23 + hop, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx - 4, sy - 19 + hop, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 4, sy - 19 + hop, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(sx - 3, sy - 19 + hop, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5, sy - 19 + hop, 1.5, 0, Math.PI * 2); ctx.fill();
+    // Nose
+    ctx.fillStyle = '#33691E'; ctx.fillRect(sx - 2, sy - 16 + hop, 4, 3);
+    // Mouth with fangs
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(sx - 4, sy - 13 + hop, 8, 2);
+    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 4, sy - 13 + hop, 2, 2);
+    ctx.fillRect(sx + 2, sy - 13 + hop, 2, 2);
+    // Club/weapon
+    ctx.fillStyle = '#795548'; ctx.strokeRect(sx + 10, sy - 14 + hop, 4, 18); ctx.fill();
+    ctx.fillStyle = '#5D4037'; ctx.fillRect(sx + 8, sy - 16 + hop, 8, 6);
+    // Legs
+    ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    ctx.fillRect(sx - 6, sy + 4 + hop, 5, 6); ctx.strokeRect(sx - 6, sy + 4 + hop, 5, 6);
+    ctx.fillRect(sx + 1, sy + 4 + hop, 5, 6); ctx.strokeRect(sx + 1, sy + 4 + hop, 5, 6);
+    // Elite crown
     if (isElite) {
-      ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillText('★', sx - 4, sy - 36);
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('★', sx - 4, sy - 30 + hop);
     }
-  };
+  };;
 
   const drawMonsterSprite = (ctx: CanvasRenderingContext2D, m: typeof monsters[0], frame: number) => {
     if (m.type === 'slime') drawSlime(ctx, m.x, m.y, frame, m.isElite);
@@ -1178,14 +1439,30 @@ export default function ImprovedRPG() {
     const cvs = canvasRef.current;
     const ctx = cvs.getContext('2d'); if (!ctx) return;
     const W = cvs.width, H = cvs.height;
+    // Sky gradient background - lighter for visibility
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
     gradient.addColorStop(0, COLORS.skyTop); gradient.addColorStop(1, COLORS.skyBottom);
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, W, H);
-    const ox = -camera.x * TILE_SIZE + TILE_SIZE / 2;
-    const oy = -camera.y * TILE_SIZE + TILE_SIZE / 2;
+    // 星空粒子效果
+    const starSeed = 12345;
+    for (let i = 0; i < 60; i++) {
+      const sx = ((starSeed * (i + 1) * 7) % W);
+      const sy = ((starSeed * (i + 1) * 13) % H);
+      const sb = 0.3 + ((starSeed * (i + 1)) % 10) / 15;
+      const ss = 0.5 + ((starSeed * (i + 1)) % 5) / 10;
+      const twinkle = Math.sin(animFrame * 0.03 + i) > 0 ? 1 : 0.6;
+      ctx.fillStyle = `rgba(255, 255, 240, ${sb * twinkle})`;
+      ctx.beginPath(); ctx.arc(sx, sy, ss, 0, Math.PI * 2); ctx.fill();
+    }
+    // ox/oy = 0 意味着 tile 0 在 screen 0 开始渲染
+    // tile mx 显示在 screen (mx - camera.x) * TILE_SIZE
+    // 可见范围是 tile camera.x 到 tile (camera.x + W/TILE_SIZE)
+    const ox = 0;
+    const oy = 0;
 
-    const tilesX = Math.ceil(W / TILE_SIZE) + 2;
-    const tilesY = Math.ceil(H / TILE_SIZE) + 2;
+    // tilesX/Y 必须覆盖从 camera 位置到 camera + 可见范围
+    const tilesX = Math.ceil(W / TILE_SIZE) + Math.ceil(camera.x) + 2;
+    const tilesY = Math.ceil(H / TILE_SIZE) + Math.ceil(camera.y) + 2;
 
     for (let ty = 0; ty < tilesY; ty++) {
       for (let tx = 0; tx < tilesX; tx++) {
@@ -1211,24 +1488,24 @@ export default function ImprovedRPG() {
 
     // 绘制发牌员（包括NPC和公告板等）
     DEALERS.forEach(dealer => {
-      const sx = (dealer.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
-      const sy = (dealer.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
+      const sx = (dealer.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+      const sy = (dealer.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
       if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) return;
       drawDealer(ctx, sx, sy, dealer, animFrame);
     });
 
     treasures.forEach(t => {
       if (t.opened) return;
-      const sx = (t.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
-      const sy = (t.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
+      const sx = (t.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+      const sy = (t.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
       if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) return;
       drawTreasure(ctx, sx, sy, t.opened, animFrame);
     });
 
     monsters.forEach(m => {
       if (m.state === 'dead') return;
-      const sx = (m.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
-      const sy = (m.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
+      const sx = (m.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+      const sy = (m.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
       if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) return;
       drawMonsterSprite(ctx, m, animFrame);
       const hp = m.hp / m.maxHp;
@@ -1245,15 +1522,15 @@ export default function ImprovedRPG() {
       }
     });
 
-    const px = (player.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
-    const py = (player.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
+    const px = (player.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+    const py = (player.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
     drawPlayerSprite(ctx, px, py, player.facing, animFrame, player.isAttacking, player.invincible);
 
     damages.forEach(d => {
       ctx.fillStyle = d.color;
       ctx.font = 'bold 14px sans-serif';
-      const dx = (d.x - camera.x) * TILE_SIZE + TILE_SIZE / 2 + ox;
-      const dy = (d.y - camera.y) * TILE_SIZE + TILE_SIZE / 2 + oy;
+      const dx = (d.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+      const dy = (d.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
       ctx.fillText(`-${d.v}`, dx, dy);
     });
   }, [player, camera, monsters, damages, gameState, animFrame]);
@@ -1264,7 +1541,17 @@ export default function ImprovedRPG() {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
         <button
-          onClick={() => setGameState('playing')}
+          onClick={async () => {
+            if (character?.id) {
+              try {
+                await characterSave.save(character.id, {
+                  x: player.x, y: player.y,
+                  hasSeenIntro: true,
+                });
+              } catch(e) { /* ignore */ }
+            }
+            setGameState('playing');
+          }}
           className="absolute top-4 right-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold z-20"
         >
           跳过全部 🚀
@@ -1285,7 +1572,22 @@ export default function ImprovedRPG() {
           <div className="flex gap-1 mb-4 justify-center">
             {STORY_LINES.map((_, i) => <div key={i} className={`w-2 h-2 rounded-full ${i === storyIdx ? 'bg-amber-400' : i < storyIdx ? 'bg-green-500' : 'bg-slate-600'}`} />)}
           </div>
-          <button onClick={() => { if (storyIdx < STORY_LINES.length - 1) setStoryIdx(storyIdx + 1); else setGameState('playing'); }}
+          <button onClick={async () => {
+            if (storyIdx < STORY_LINES.length - 1) {
+              setStoryIdx(storyIdx + 1);
+            } else {
+              // 完成剧情，保存状态
+              if (character?.id) {
+                try {
+                  await characterSave.save(character.id, {
+                    x: player.x, y: player.y,
+                    hasSeenIntro: true,
+                  });
+                } catch(e) { /* ignore save error */ }
+              }
+              setGameState('playing');
+            }
+          }}
             className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition-colors">
             {storyIdx < STORY_LINES.length - 1 ? (typingDone ? '继续 →' : '跳过') : '开始冒险！'}
           </button>
@@ -1300,7 +1602,15 @@ export default function ImprovedRPG() {
       <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center">
         <h1 className="text-4xl font-bold text-red-500 mb-4">💀 游戏结束</h1>
         <p className="text-slate-300 mb-8">你被怪物击败了...</p>
-        <button onClick={() => { setPlayer(p => ({ ...p, x: 40, y: 36, hp: 100, mp: 50, energy: 3 })); setMonsters(m => m.map(x => ({ ...x, hp: x.maxHp, state: 'patrol' }))); setGameState('playing'); }}
+        <button onClick={() => {
+          const newPlayer = { ...player, x: 40, y: 36, hp: player.maxHp, mp: player.maxMp, energy: player.maxEnergy };
+          setPlayer(newPlayer);
+          setMonsters(m => m.map(x => ({ ...x, hp: x.maxHp, state: 'patrol' })));
+          if (character?.id) {
+            characterSave.save(character.id, { x: 40, y: 36, hp: player.maxHp, maxHp: player.maxHp, mp: player.maxMp, maxMp: player.maxMp });
+          }
+          setGameState('playing');
+        }}
           className="px-8 py-3 bg-amber-600 text-white rounded-xl font-bold">重新开始</button>
       </div>
     );
@@ -1342,80 +1652,55 @@ export default function ImprovedRPG() {
     );
   }
 
-  // 发牌员卡牌界面
+  // 发牌员界面 - 卡组系统隐藏在游戏表层之下，按E触发剧情对话
+  // （已移除卡牌收藏UI，发牌员直接触发事件）
+
+  // 卡组查看弹窗（顶部按钮触发）
   if (showCardGame) {
-    const filteredCards = cardFilter === 'all' ? collectedCards : collectedCards.filter(c => c.type === cardFilter);
-    const filterButtons: Array<{ key: CardType | 'all'; label: string }> = [
-      { key: 'all', label: '全部' },
-      { key: 'MAIN_STORY', label: '📜主线' },
-      { key: 'SIDE_STORY', label: '📖支线' },
-      { key: 'MECHANISM', label: '⚔️机制' },
-      { key: 'STAT_UP', label: '📈数值' },
-      { key: 'EMOTION', label: '💕情感' },
-      { key: 'MOOD', label: '🌙情绪' },
-      { key: 'ECONOMY', label: '💰经济' },
-      { key: 'EMPTY', label: '💨空白' },
-    ];
+    const nextCard = cardRewards.length > 0 ? cardRewards[0] : (collectedCards.length < ALL_EVENT_CARDS.length ? ALL_EVENT_CARDS.find(c => !collectedCards.some(x => x.id === c.id)) : null);
+    const upcomingCards = collectedCards.slice(0, 5);
     return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-purple-500 shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
-          <h2 className="text-2xl font-bold text-purple-400 mb-2 text-center">🃏 事件卡收藏</h2>
-          {nearbyDealer && (
-            <p className="text-slate-400 text-sm text-center mb-2">
-              发牌员：{nearbyDealer.name} ({DEALER_TYPE_NAMES[nearbyDealer.type]})
-            </p>
-          )}
-          <p className="text-slate-500 text-xs text-center mb-3">卡牌是剧情的碎片 — 收集它们来推进世界</p>
-
-          {/* 过滤器 */}
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {filterButtons.map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setCardFilter(btn.key)}
-                className={`px-3 py-1 rounded-lg text-sm font-bold transition-colors ${cardFilter === btn.key ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-              >
-                {btn.label}
-              </button>
-            ))}
+      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50" onClick={() => setShowCardGame(false)}>
+        <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 border border-purple-500 shadow-2xl max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-purple-400">🃏 事件卡组</h2>
+            <button onClick={() => setShowCardGame(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
           </div>
 
-          {/* 卡牌列表 */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {filteredCards.length === 0 ? (
-              <div className="text-center text-slate-500 py-8">
-                <div className="text-4xl mb-2">🃏</div>
-                <p>还没有收集到这类卡牌</p>
-                <p className="text-xs mt-1">靠近发牌员或击败怪物可获得事件卡</p>
+          {/* 下一张卡 */}
+          {nextCard ? (
+            <div className="mb-4">
+              <div className="text-xs text-slate-500 mb-2">🎯 下一张（待触发）</div>
+              <div className="rounded-xl p-4 border-2" style={{ borderColor: RARITY_COLORS[nextCard.rarity], background: '#0f0f1a' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{CARD_TYPE_ICONS[nextCard.type]}</span>
+                  <span className="text-white font-bold">{nextCard.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: RARITY_COLORS[nextCard.rarity], color: 'white' }}>{RARITY_NAMES[nextCard.rarity]}</span>
+                </div>
+                <div className="text-slate-400 text-sm">{nextCard.description}</div>
+                {nextCard.storyContent && <div className="text-purple-300 text-xs mt-1 italic">📖 {nextCard.storyContent}</div>}
               </div>
-            ) : (
-              filteredCards.map(card => renderEventCard(card))
-            )}
-          </div>
-
-          {/* 全卡展示入口 */}
-          <div className="mt-4 pt-4 border-t border-slate-700">
-            <p className="text-slate-400 text-xs text-center mb-2">已收集 {collectedCards.length} / {ALL_EVENT_CARDS.length} 张卡牌</p>
-            <div className="grid grid-cols-8 gap-1 mb-3">
-              {ALL_EVENT_CARDS.map(c => {
-                const owned = collectedCards.some(x => x.id === c.id);
-                return (
-                  <div key={c.id} style={{
-                    width: 32, height: 32, borderRadius: 4,
-                    background: owned ? '#1a1a2e' : '#0a0a0f',
-                    border: `1px solid ${RARITY_COLORS[c.rarity]}`,
-                    opacity: owned ? 1 : 0.3,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14,
-                  }}>
-                    {CARD_TYPE_ICONS[c.type]}
-                  </div>
-                );
-              })}
             </div>
-          </div>
+          ) : (
+            <div className="mb-4 p-4 bg-slate-800 rounded-xl text-center text-slate-500">🎉 所有卡牌已收集！</div>
+          )}
 
-          <button onClick={() => setShowCardGame(false)} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold mt-2">返回游戏</button>
+          {/* 已收集的卡（预览5张） */}
+          {upcomingCards.length > 0 && (
+            <div>
+              <div className="text-xs text-slate-500 mb-2">📋 已收集 {collectedCards.length}/{ALL_EVENT_CARDS.length} 张</div>
+              <div className="grid grid-cols-5 gap-2">
+                {upcomingCards.map(card => (
+                  <div key={card.id} className="rounded-lg p-2 text-center" style={{ background: '#1a1a2e', border: `1px solid ${RARITY_COLORS[card.rarity]}` }}>
+                    <div className="text-xl mb-1">{CARD_TYPE_ICONS[card.type]}</div>
+                    <div className="text-xs text-white truncate">{card.name.substring(0, 6)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button onClick={() => setShowCardGame(false)} className="w-full mt-4 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold">返回游戏</button>
         </div>
       </div>
     );
@@ -1441,12 +1726,50 @@ export default function ImprovedRPG() {
         </div>
         <div className="text-slate-400 text-sm">💰 {player.gold}</div>
         <div className="text-slate-400 text-sm">EXP: {player.exp}/{player.expToLevel}</div>
-        <div className="text-slate-400 text-sm">🃏 {collectedCards.length}</div>
+        <button onClick={() => setShowCardGame(true)} className="ml-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-white text-sm font-bold flex items-center gap-1">
+          🃏 卡组
+        </button>
       </div>
 
-      {/* 地图画布 */}
-      <div className="flex-1 relative overflow-hidden" ref={containerRef} style={{ minHeight: '400px' }}>
-        <canvas ref={canvasRef} width={dimensions.width} height={dimensions.height} className="w-full h-full" />
+      {/* 地图画布 - 像素精确，不拉伸 */}
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center" ref={containerRef}>
+        <canvas ref={canvasRef} width={dimensions.width} height={dimensions.height}
+          className="cursor-pointer object-none"
+          onClick={(e) => {
+            // Only process clicks directly on the canvas (not bubbled from child elements)
+            if (e.target !== canvasRef.current) return;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+            // 转换为世界坐标
+            const worldX = clickX / TILE_SIZE + camera.x;
+            const worldY = clickY / TILE_SIZE + camera.y;
+            // 检查是否点击了发牌员（附近）
+            if (nearbyDealer) {
+              const dx = Math.abs(worldX - nearbyDealer.x);
+              const dy = Math.abs(worldY - nearbyDealer.y);
+              if (dx < 2 && dy < 2) {
+                // 点击了发牌员附近，触发对话
+                const dealerHints = [
+                  `发牌员 ${nearbyDealer.name} 注视着你...`,
+                  `在这个世界上，命运就像一副牌——你永远不知道下一张会抽到什么。`,
+                  `羊蹄山的传说还在继续...但时机未到。`,
+                  `继续探索吧，旅人。你会遇到该遇到的人，发生该发生的事。`,
+                  `有时候，最重要的不是目的地，而是路上的风景。`,
+                ];
+                alert(dealerHints[Math.floor(Math.random() * dealerHints.length)]);
+                return;
+              }
+            }
+            // 否则设置移动目标
+            setClickTarget({ x: Math.round(worldX), y: Math.round(worldY) });
+            keysRef.current.clear(); // 清除键盘按键
+          }}
+        />
         {!animFrame && gameState === 'playing' && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-white">
             <div className="text-center">
@@ -1476,11 +1799,12 @@ export default function ImprovedRPG() {
 
         {/* 技能按钮 */}
         <div className="absolute bottom-20 right-4 flex flex-col gap-2">
-          <button onClick={attack} disabled={player.cooldown > 0}
+          <button onClick={(e) => { e.stopPropagation(); attack(); }}
+            disabled={player.cooldown > 0}
             className="w-16 h-16 bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform">
             <span className="text-xl">⚔️</span><span className="text-[10px]">J攻击</span>
           </button>
-          <button onClick={dodge}
+          <button onClick={(e) => { e.stopPropagation(); dodge(); }}
             className="w-16 h-16 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform">
             <span className="text-xl">💨</span><span className="text-[10px]">空格闪避</span>
           </button>
@@ -1493,18 +1817,25 @@ export default function ImprovedRPG() {
           </div>
         )}
 
-        {/* 发牌员交互提示 */}
-        {nearbyDealer && (
-          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-purple-600/90 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2">
-            <span>{nearbyDealer.icon}</span> {nearbyDealer.name} - 按 E 查看{CARD_TYPE_NAMES[nearbyDealer.supportedCardTypes[0]]}卡
-          </div>
-        )}
+        {/* 发牌员交互提示 - 已隐藏（卡组系统隐藏在游戏表层之下） */}
 
         {/* 宝箱交互提示 */}
         {interactionHint && interactionHint.startsWith('treasure_') && (
-          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-yellow-600/90 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const treasureId = interactionHint.split('_')[1];
+              const tid = parseInt(treasureId);
+              setTreasures(ts => ts.map(t => t.id === tid ? { ...t, opened: true } : t));
+              const reward = ALL_EVENT_CARDS[Math.floor(Math.random() * 3)];
+              setCardRewards([reward]);
+              setShowRewards(true);
+              setClickTarget(null);
+            }}
+            className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2 shadow-lg"
+          >
             <span>📦</span> 开启宝箱
-          </div>
+          </button>
         )}
       </div>
 

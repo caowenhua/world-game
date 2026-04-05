@@ -93,7 +93,7 @@ export default function Home() {
       )}
       {view === 'game' && character && (
         <div className="w-full h-screen">
-          <ImprovedRPG />
+          <ImprovedRPG character={character} />
         </div>
       )}
     </div>

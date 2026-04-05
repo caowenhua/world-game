@@ -58,6 +58,7 @@ type Character struct {
 	// Game state
 	CurrentRegion  string   `bson:"current_region" json:"current_region"`
 	Position       Position `bson:"position" json:"position"`
+	HasSeenIntro   bool     `bson:"has_seen_intro" json:"has_seen_intro"`
 
 	// Progression
 	Abilities      []string   `bson:"abilities" json:"abilities"`

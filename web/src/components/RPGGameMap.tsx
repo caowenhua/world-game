@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { BatchCharacterRenderer, MONSTER_TEMPLATES } from './CharacterModel';
+import { getCharacterDesign, CHARACTER_TEMPLATES, CharacterState } from './CharacterSprites';
 
 // 地形类型
 // 0 = 草地（可行走）
@@ -7,6 +9,9 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 // 3 = 水（不可通行）
 
 export type TerrainType = 0 | 1 | 2 | 3;
+
+// 角色模板类型映射
+type MonsterTemplateType = 'slime' | 'goblin' | 'wolfman' | 'fire_spirit';
 
 export interface Monster {
   id: number;
@@ -18,6 +23,7 @@ export interface Monster {
   defense: number;
   name: string;
   emoji: string;
+  templateId: string; // 角色模板ID：slime, goblin, wolfman, fire_spirit
   // AI状态
   state: 'patrol' | 'chase' | 'attack';
   patrolDir: { dx: number; dy: number };
@@ -87,21 +93,30 @@ const TILE_SIZE = 36;
 const MAP_COLS = 20;
 const MAP_ROWS = 15;
 
+// 改进的配色方案 - 更有质感的像素RPG风格
 const TERRAIN_COLORS: Record<TerrainType, string> = {
-  0: '#2d5a27', // 草地
-  1: '#8b7355', // 地板
-  2: '#4a4a4a', // 墙壁
-  3: '#1e3a5f', // 水
+  0: '#2d5a27', // 草地 - 深沉的森林绿
+  1: '#8b7355', // 地板 - 温暖的土棕色
+  2: '#4a4a5a', // 墙壁 - 石灰色
+  3: '#1a4a6a', // 水 - 深沉的湖蓝
 };
 
-// 初始怪物配置
+// 改进的地形细节色 - 4色系统增加层次感
+const TERRAIN_DETAILS: Record<TerrainType, string[]> = {
+  0: ['#3d7a37', '#1d4a17', '#5daa47', '#0d3a07'], // 草地4色：亮、中亮、中暗、极暗
+  1: ['#a08365', '#6b5335', '#c0a385', '#4b3315'], // 地板4色
+  2: ['#6a6a7a', '#4a4a5a', '#8a8a9a', '#3a3a4a'], // 墙壁4色：亮、中、极亮、暗
+  3: ['#2a7ab2', '#1a4a72', '#4a9ad2', '#0a2a52'], // 水面4色
+};
+
+// 初始怪物配置 - 使用模板ID
 export const INITIAL_MONSTERS: Omit<Monster, 'state' | 'patrolDir' | 'patrolTimer' | 'attackCooldown'>[] = [
-  { id: 1, x: 7, y: 3, hp: 60, maxHp: 60, attack: 10, defense: 5, name: '史莱姆', emoji: '🟢' },
-  { id: 2, x: 8, y: 4, hp: 60, maxHp: 60, attack: 10, defense: 5, name: '史莱姆', emoji: '🟢' },
-  { id: 3, x: 13, y: 7, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺' },
-  { id: 4, x: 14, y: 8, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺' },
-  { id: 5, x: 14, y: 9, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺' },
-  { id: 6, x: 4, y: 11, hp: 100, maxHp: 100, attack: 20, defense: 12, name: '狼人', emoji: '🐺' },
+  { id: 1, x: 7, y: 3, hp: 60, maxHp: 60, attack: 10, defense: 5, name: '史莱姆', emoji: '🟢', templateId: 'slime_green' },
+  { id: 2, x: 8, y: 4, hp: 60, maxHp: 60, attack: 10, defense: 5, name: '史莱姆', emoji: '🟢', templateId: 'slime_green' },
+  { id: 3, x: 13, y: 7, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺', templateId: 'goblin' },
+  { id: 4, x: 14, y: 8, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺', templateId: 'goblin' },
+  { id: 5, x: 14, y: 9, hp: 80, maxHp: 80, attack: 15, defense: 8, name: '哥布林', emoji: '👺', templateId: 'goblin' },
+  { id: 6, x: 4, y: 11, hp: 100, maxHp: 100, attack: 20, defense: 12, name: '狼人', emoji: '🐺', templateId: 'werewolf' },
 ];
 
 export const GameMap: React.FC<GameMapProps> = ({
@@ -195,9 +210,28 @@ export const GameMap: React.FC<GameMapProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    // 清空
-    ctx.fillStyle = '#1a1a2e';
+    // 绘制渐变背景 - 深夜星空，从深黑到深蓝，无紫色
+    const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+    bgGradient.addColorStop(0, '#050510');
+    bgGradient.addColorStop(0.3, '#0a0a1f');
+    bgGradient.addColorStop(0.6, '#0f1525');
+    bgGradient.addColorStop(1, '#0a1520');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
+
+    // 添加星空粒子效果 - 更丰富的星星
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    for (let i = 0; i < 50; i++) {
+      const sx = (i * 37 + 7) % width;
+      const sy = (i * 23 + 11) % height;
+      const size = 0.3 + (i % 3) * 0.3;
+      const alpha = 0.2 + (i % 5) * 0.1;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
     // 绘制地形
     for (let y = 0; y < MAP_ROWS; y++) {
@@ -206,121 +240,435 @@ export const GameMap: React.FC<GameMapProps> = ({
         ctx.fillStyle = TERRAIN_COLORS[terrain];
         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         
-        // 草地纹理
+        // 草地纹理 - 更丰富的细节
         if (terrain === 0) {
-          ctx.fillStyle = '#3d7a37';
-          for (let i = 0; i < 3; i++) {
-            const ox = Math.random() * TILE_SIZE;
-            const oy = Math.random() * TILE_SIZE;
-            ctx.fillRect(x * TILE_SIZE + ox, y * TILE_SIZE + oy, 2, 4);
+          const details = TERRAIN_DETAILS[0];
+          for (let i = 0; i < 4; i++) {
+            ctx.fillStyle = details[i % details.length];
+            const ox = ((x * 7 + i * 13) % (TILE_SIZE - 4)) + 2;
+            const oy = ((y * 11 + i * 17) % (TILE_SIZE - 4)) + 2;
+            ctx.fillRect(x * TILE_SIZE + ox, y * TILE_SIZE + oy, 2, 3);
           }
         }
         
-        // 墙壁纹理
+        // 墙壁纹理 - 石头质感
         if (terrain === 2) {
-          ctx.strokeStyle = '#3a3a3a';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+          const details = TERRAIN_DETAILS[2];
+          // 顶部高光
+          ctx.fillStyle = '#7a7a8a';
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, 3);
+          // 左侧高光
+          ctx.fillStyle = '#6a6a7a';
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, 3, TILE_SIZE);
+          // 底部阴影
+          ctx.fillStyle = '#3a3a4a';
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE + TILE_SIZE - 3, TILE_SIZE, 3);
+          // 右侧阴影
+          ctx.fillStyle = '#4a4a5a';
+          ctx.fillRect(x * TILE_SIZE + TILE_SIZE - 3, y * TILE_SIZE, 3, TILE_SIZE);
+        }
+        
+        // 水面波光效果
+        if (terrain === 3) {
+          const time = Date.now() / 1000;
+          const waveOffset = Math.sin(time * 2 + x + y) * 2;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.fillRect(
+            x * TILE_SIZE + 4 + waveOffset,
+            y * TILE_SIZE + 4,
+            8, 2
+          );
+          ctx.fillRect(
+            x * TILE_SIZE + 18 - waveOffset,
+            y * TILE_SIZE + 14,
+            6, 2
+          );
         }
       }
     }
 
-    // 绘制怪物
+    // 绘制怪物 - 使用新的角色设计系统
     monsters.forEach(monster => {
       if (monster.hp <= 0) return;
       
       const mx = monster.x * TILE_SIZE + TILE_SIZE / 2;
       const my = monster.y * TILE_SIZE + TILE_SIZE / 2;
       
-      // 怪物身体
-      ctx.fillStyle = monster.state === 'chase' ? '#ff4444' : '#cc3333';
+      // 获取角色设计模板
+      const design = getCharacterDesign(monster.templateId);
+      
+      // 怪物外发光效果 - 根据角色类型调整
+      const glowColor = monster.state === 'chase' 
+        ? (design.type === 'boss' ? 'rgba(255, 50, 50, 0.6)' : 'rgba(255, 80, 80, 0.5)')
+        : (design.type === 'boss' ? 'rgba(200, 50, 50, 0.4)' : 'rgba(200, 100, 100, 0.3)');
+      const gradient = ctx.createRadialGradient(mx, my, TILE_SIZE / 4, mx, my, TILE_SIZE / 1.5);
+      gradient.addColorStop(0, glowColor);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(mx, my, TILE_SIZE / 2.5, 0, Math.PI * 2);
+      ctx.arc(mx, my, TILE_SIZE / 1.5, 0, Math.PI * 2);
       ctx.fill();
       
-      // 怪物emoji
-      ctx.font = '20px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(monster.emoji, mx, my);
+      // idle动画 - 上下浮动
+      const idleBounce = Math.sin(Date.now() / 400) * 2;
+      const bodyY = my + (design.bodyShape === 'blob' ? idleBounce : 0);
+      
+      // 绘制角色身体 - 根据身体类型
+      if (design.bodyShape === 'blob') {
+        // 史莱姆/果冻类 - 滴溜溜的形状
+        const blobScale = design.bodyShape === 'blob' ? 1 + Math.sin(Date.now() / 500) * 0.05 : 1;
+        const rx = TILE_SIZE / 2.5 * blobScale;
+        const ry = TILE_SIZE / 3 * blobScale;
+        
+        // 身体主体
+        ctx.beginPath();
+        ctx.ellipse(mx, bodyY, rx, ry * 0.9, 0, 0, Math.PI * 2);
+        ctx.fillStyle = design.bodyColor;
+        ctx.fill();
+        
+        // 身体高光
+        const highlightGrad = ctx.createRadialGradient(mx - rx * 0.3, bodyY - ry * 0.3, 0, mx, bodyY, rx);
+        highlightGrad.addColorStop(0, 'rgba(255,255,255,0.5)');
+        highlightGrad.addColorStop(0.3, 'rgba(255,255,255,0.2)');
+        highlightGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = highlightGrad;
+        ctx.beginPath();
+        ctx.ellipse(mx, bodyY, rx, ry * 0.9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛
+        const eyeY = bodyY - 2;
+        const eyeSpacing = rx * 0.4;
+        // 左眼
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.ellipse(mx - eyeSpacing, eyeY, 4, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 右眼
+        ctx.beginPath();
+        ctx.ellipse(mx + eyeSpacing, eyeY, 4, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 瞳孔
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(mx - eyeSpacing + 1, eyeY + 1, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(mx + eyeSpacing + 1, eyeY + 1, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // 眼睛高光
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(mx - eyeSpacing - 1, eyeY - 2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(mx + eyeSpacing - 1, eyeY - 2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 嘴巴
+        if (design.hasMouth) {
+          ctx.strokeStyle = design.bodyColorDark;
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.arc(mx, bodyY + ry * 0.3, rx * 0.3, 0.1 * Math.PI, 0.9 * Math.PI);
+          ctx.stroke();
+        }
+        
+        // 水滴效果（史莱姆）
+        if (design.specialFeature === 'drip') {
+          ctx.fillStyle = design.bodyColor;
+          ctx.beginPath();
+          ctx.ellipse(mx - rx * 0.8, bodyY + ry * 0.5, 3, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // 火焰效果
+        if (design.specialFeature === 'flame') {
+          const flameOffset = Math.sin(Date.now() / 100) * 2;
+          ctx.fillStyle = design.accentColor;
+          ctx.beginPath();
+          ctx.moveTo(mx - 8, bodyY - ry * 0.5);
+          ctx.quadraticCurveTo(mx - 4, bodyY - ry - 10 + flameOffset, mx, bodyY - ry * 0.5);
+          ctx.quadraticCurveTo(mx + 4, bodyY - ry - 8 + flameOffset, mx + 8, bodyY - ry * 0.5);
+          ctx.fill();
+        }
+        
+      } else if (design.bodyShape === 'oval') {
+        // 哥布林/狼人类 - 椭圆形
+        const rx = TILE_SIZE / 2.5;
+        const ry = TILE_SIZE / 2.2;
+        
+        // 身体
+        const bodyGrad = ctx.createRadialGradient(mx - 3, bodyY - 3, 0, mx, bodyY, rx);
+        bodyGrad.addColorStop(0, design.bodyColor);
+        bodyGrad.addColorStop(1, design.bodyColorDark);
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.ellipse(mx, bodyY, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 耳朵（哥布林）
+        if (design.specialFeature === 'ears') {
+          ctx.fillStyle = design.bodyColor;
+          // 左耳
+          ctx.beginPath();
+          ctx.moveTo(mx - rx, bodyY - ry * 0.3);
+          ctx.lineTo(mx - rx - 8, bodyY - ry - 8);
+          ctx.lineTo(mx - rx + 5, bodyY - ry * 0.5);
+          ctx.fill();
+          // 右耳
+          ctx.beginPath();
+          ctx.moveTo(mx + rx, bodyY - ry * 0.3);
+          ctx.lineTo(mx + rx + 8, bodyY - ry - 8);
+          ctx.lineTo(mx + rx - 5, bodyY - ry * 0.5);
+          ctx.fill();
+        }
+        
+        // 尾巴（狼人）
+        if (design.hasTail) {
+          ctx.fillStyle = design.bodyColor;
+          ctx.beginPath();
+          ctx.moveTo(mx + rx * 0.7, bodyY + ry * 0.5);
+          ctx.quadraticCurveTo(mx + rx + 12, bodyY + ry + 5, mx + rx + 8, bodyY);
+          ctx.quadraticCurveTo(mx + rx + 10, bodyY - 5, mx + rx * 0.7, bodyY);
+          ctx.fill();
+        }
+        
+        // 眼睛
+        const eyeY = bodyY - ry * 0.2;
+        ctx.fillStyle = design.accentColor;
+        ctx.beginPath();
+        ctx.ellipse(mx - rx * 0.35, eyeY, 3, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(mx + rx * 0.35, eyeY, 3, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 瞳孔
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(mx - rx * 0.35 + 1, eyeY + 1, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(mx + rx * 0.35 + 1, eyeY + 1, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // 高光
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(mx - rx * 0.35 - 1, eyeY - 1, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(mx + rx * 0.35 - 1, eyeY - 1, 1, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 嘴巴
+        if (design.hasMouth) {
+          ctx.strokeStyle = design.bodyColorDark;
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.arc(mx, bodyY + ry * 0.3, rx * 0.25, 0.1 * Math.PI, 0.9 * Math.PI);
+          ctx.stroke();
+        }
+        
+      } else {
+        // 默认圆形
+        const bodyGradient = ctx.createRadialGradient(mx - 3, bodyY - 3, 0, mx, bodyY, TILE_SIZE / 2.5);
+        bodyGradient.addColorStop(0, monster.state === 'chase' ? '#ff6666' : '#ee5555');
+        bodyGradient.addColorStop(1, monster.state === 'chase' ? '#cc2222' : '#aa3333');
+        ctx.fillStyle = bodyGradient;
+        ctx.beginPath();
+        ctx.arc(mx, bodyY, TILE_SIZE / 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 怪物emoji
+        ctx.font = '20px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(monster.emoji, mx, bodyY);
+      }
       
       // 怪物血条背景
       const hpBarWidth = TILE_SIZE - 4;
       const hpBarHeight = 4;
       const hpBarX = monster.x * TILE_SIZE + 2;
-      const hpBarY = monster.y * TILE_SIZE - 6;
+      const hpBarY = monster.y * TILE_SIZE - 8;
       
-      ctx.fillStyle = '#333';
-      ctx.fillRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.roundRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight, 2);
+      ctx.fill();
       
       // 怪物血条
       const hpPercent = monster.hp / monster.maxHp;
-      ctx.fillStyle = hpPercent > 0.5 ? '#4ade80' : hpPercent > 0.25 ? '#fbbf24' : '#ef4444';
-      ctx.fillRect(hpBarX, hpBarY, hpBarWidth * hpPercent, hpBarHeight);
+      const hpColor = hpPercent > 0.5 ? '#4ade80' : hpPercent > 0.25 ? '#fbbf24' : '#ef4444';
+      ctx.fillStyle = hpColor;
+      ctx.beginPath();
+      ctx.roundRect(hpBarX, hpBarY, hpBarWidth * hpPercent, hpBarHeight, 2);
+      ctx.fill();
       
       // 攻击范围指示（追击中）
       if (monster.state === 'chase') {
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+        const pulseScale = 1 + Math.sin(Date.now() / 200) * 0.1;
+        ctx.strokeStyle = design.type === 'boss' ? 'rgba(255, 50, 50, 0.5)' : 'rgba(255, 100, 100, 0.4)';
         ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
         ctx.beginPath();
-        ctx.arc(mx, my, TILE_SIZE * 1.5, 0, Math.PI * 2);
+        ctx.arc(mx, bodyY, TILE_SIZE * 1.5 * pulseScale, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
     });
 
-    // 绘制玩家
+    // 绘制玩家 - 使用新的勇者设计
     const px = player.x * TILE_SIZE + TILE_SIZE / 2;
     const py = player.y * TILE_SIZE + TILE_SIZE / 2;
     
     // 玩家闪烁（受伤时）
     if (player.invincible <= 0 || Math.floor(Date.now() / 100) % 2 === 0) {
-      // 玩家身体
-      ctx.fillStyle = '#3b82f6';
+      // 玩家外发光 - 蓝色光晕
+      const playerGlow = ctx.createRadialGradient(px, py, TILE_SIZE / 4, px, py, TILE_SIZE * 1.2);
+      playerGlow.addColorStop(0, 'rgba(100, 180, 255, 0.6)');
+      playerGlow.addColorStop(0.5, 'rgba(60, 130, 250, 0.3)');
+      playerGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = playerGlow;
       ctx.beginPath();
-      ctx.arc(px, py, TILE_SIZE / 2.5, 0, Math.PI * 2);
+      ctx.arc(px, py, TILE_SIZE * 1.2, 0, Math.PI * 2);
       ctx.fill();
       
-      // 玩家边框
-      ctx.strokeStyle = '#60a5fa';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      // idle动画 - 上下浮动
+      const idleBounce = Math.sin(Date.now() / 400) * 2;
+      const bodyY = py + idleBounce;
       
-      // 玩家是🔵
-      ctx.font = '22px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🔵', px, py);
+      // 玩家身体 - 圆形带渐变
+      const bodyGrad = ctx.createRadialGradient(px - 3, bodyY - 3, 0, px, bodyY, TILE_SIZE / 2.5);
+      bodyGrad.addColorStop(0, '#60a5fa');
+      bodyGrad.addColorStop(1, '#2563eb');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.arc(px, bodyY, TILE_SIZE / 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 身体高光
+      const highlightGrad = ctx.createRadialGradient(px - 5, bodyY - 5, 0, px, bodyY, TILE_SIZE / 2.5);
+      highlightGrad.addColorStop(0, 'rgba(255,255,255,0.4)');
+      highlightGrad.addColorStop(0.5, 'rgba(255,255,255,0.1)');
+      highlightGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = highlightGrad;
+      ctx.beginPath();
+      ctx.arc(px, bodyY, TILE_SIZE / 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 玩家边框 - 发光效果
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#3b82f6';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(px, bodyY, TILE_SIZE / 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      
+      // 眼睛
+      const eyeY = bodyY - 2;
+      const eyeSpacing = TILE_SIZE / 7;
+      // 左眼
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.ellipse(px - eyeSpacing, eyeY, 3, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // 右眼
+      ctx.beginPath();
+      ctx.ellipse(px + eyeSpacing, eyeY, 3, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // 瞳孔
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(px - eyeSpacing + 1, eyeY + 1, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px + eyeSpacing + 1, eyeY + 1, 2, 0, Math.PI * 2);
+      ctx.fill();
+      // 眼睛高光
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(px - eyeSpacing - 1, eyeY - 1, 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px + eyeSpacing - 1, eyeY - 1, 1, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 王冠（勇者标记）
+      ctx.fillStyle = '#ffd700';
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(px - 8, bodyY - TILE_SIZE / 2.5 + 2);
+      ctx.lineTo(px - 6, bodyY - TILE_SIZE / 2.5 - 5);
+      ctx.lineTo(px, bodyY - TILE_SIZE / 2.5);
+      ctx.lineTo(px + 6, bodyY - TILE_SIZE / 2.5 - 5);
+      ctx.lineTo(px + 8, bodyY - TILE_SIZE / 2.5 + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // 王冠宝石
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(px, bodyY - TILE_SIZE / 2.5 - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
     
-    // 玩家血条
+    // 玩家血条 - 带边框和圆角
     const playerHpBarWidth = TILE_SIZE + 8;
-    const playerHpBarHeight = 5;
+    const playerHpBarHeight = 6;
     const playerHpBarX = player.x * TILE_SIZE - 4;
-    const playerHpBarY = player.y * TILE_SIZE - 10;
+    const playerHpBarY = player.y * TILE_SIZE - 12;
     
-    ctx.fillStyle = '#333';
-    ctx.fillRect(playerHpBarX, playerHpBarY, playerHpBarWidth, playerHpBarHeight);
+    // 血条背景
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.roundRect(playerHpBarX - 1, playerHpBarY - 1, playerHpBarWidth + 2, playerHpBarHeight + 2, 3);
+    ctx.fill();
     
+    // 血条
     const playerHpPercent = player.hp / player.maxHp;
-    ctx.fillStyle = playerHpPercent > 0.5 ? '#4ade80' : playerHpPercent > 0.25 ? '#fbbf24' : '#ef4444';
-    ctx.fillRect(playerHpBarX, playerHpBarY, playerHpBarWidth * playerHpPercent, playerHpBarHeight);
+    const hpGrad = ctx.createLinearGradient(playerHpBarX, 0, playerHpBarX + playerHpBarWidth, 0);
+    hpGrad.addColorStop(0, playerHpPercent > 0.5 ? '#4ade80' : playerHpPercent > 0.25 ? '#fbbf24' : '#ef4444');
+    hpGrad.addColorStop(1, playerHpPercent > 0.5 ? '#22c55e' : playerHpPercent > 0.25 ? '#f59e0b' : '#dc2626');
+    ctx.fillStyle = hpGrad;
+    ctx.beginPath();
+    ctx.roundRect(playerHpBarX, playerHpBarY, playerHpBarWidth * playerHpPercent, playerHpBarHeight, 2);
+    ctx.fill();
 
-    // 绘制伤害数字
+    // 绘制伤害数字 - 改进的视觉效果
     damages.forEach(dmg => {
-      ctx.font = 'bold 16px sans-serif';
+      const alpha = Math.max(0, 1 - dmg.timer / 30);
+      const scale = 1 + (30 - dmg.timer) / 60; // 数字向上飘时放大
+      
+      ctx.save();
+      ctx.translate(dmg.x * TILE_SIZE + TILE_SIZE / 2, dmg.y * TILE_SIZE - 10 - (30 - dmg.timer));
+      ctx.scale(scale, scale);
+      
+      // 文字阴影
+      ctx.font = 'bold 18px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      const alpha = Math.max(0, 1 - dmg.timer / 30);
-      ctx.fillStyle = dmg.isPlayer 
-        ? `rgba(255, 100, 100, ${alpha})` 
-        : `rgba(255, 255, 100, ${alpha})`;
+      if (dmg.isPlayer) {
+        // 对玩家的伤害 - 红色
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = `rgba(255, 80, 80, ${alpha})`;
+      } else {
+        // 对敌人的伤害 - 金色
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+      }
       
-      ctx.fillText(
-        `-${dmg.value}`,
-        dmg.x * TILE_SIZE + TILE_SIZE / 2,
-        dmg.y * TILE_SIZE - 10 - (30 - dmg.timer)
-      );
+      ctx.fillText(`-${dmg.value}`, 0, 0);
+      ctx.restore();
     });
 
   }, [player, monsters, damages]);
@@ -336,8 +684,11 @@ export const GameMap: React.FC<GameMapProps> = ({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* 游戏画布 */}
-      <div className="border-4 border-yellow-600 rounded-lg overflow-hidden shadow-xl">
+      {/* 游戏画布 - 改进的边框效果 */}
+      <div className="border-4 border-amber-600 rounded-lg overflow-hidden shadow-2xl" style={{ 
+        boxShadow: '0 0 20px rgba(251, 191, 36, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.5)',
+        borderColor: '#d97706'
+      }}>
         <canvas ref={canvasRef} className="block" />
       </div>
       

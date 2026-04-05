@@ -80,6 +80,8 @@ export interface Character {
   gold: number;
   active_quests: QuestProgress[];
   completed_quests: string[];
+  has_seen_intro: boolean;
+  defense: number;
 }
 
 // Event types

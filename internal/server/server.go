@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -79,6 +80,7 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/api/characters/{id}/events", s.authMiddleware(http.HandlerFunc(s.handleGetEvents))).Methods("GET")
 	s.router.Handle("/api/characters/{id}/chat", s.authMiddleware(http.HandlerFunc(s.handleGetChat))).Methods("GET")
 	s.router.Handle("/api/characters/{id}/equip", s.authMiddleware(http.HandlerFunc(s.handleEquipItem))).Methods("POST")
+	s.router.Handle("/api/characters/{id}/save", s.authMiddleware(http.HandlerFunc(s.handleSaveCharacterState))).Methods("PUT")
 
 	// Map/Region routes - character specific
 	s.router.Handle("/api/characters/{id}/region", s.authMiddleware(http.HandlerFunc(s.handleGetRegionInfo))).Methods("GET")
@@ -268,6 +270,68 @@ func (s *Server) handleGetCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(char)
+}
+
+// SaveCharacterStateRequest represents the game state to save
+type SaveCharacterStateRequest struct {
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	HP       int     `json:"hp"`
+	MaxHP    int     `json:"max_hp"`
+	MP       int     `json:"mp"`
+	MaxMP    int     `json:"max_mp"`
+	Level    int     `json:"level"`
+	EXP      int     `json:"exp"`
+	Gold     int     `json:"gold"`
+	Attack   int     `json:"attack"`
+	Defense  int     `json:"defense"`
+	Facing   string  `json:"facing"`
+	HasSeenIntro bool `json:"has_seen_intro"`
+}
+
+func (s *Server) handleSaveCharacterState(w http.ResponseWriter, r *http.Request) {
+	charID, _ := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
+
+	var req SaveCharacterStateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	// Build update map with only the fields provided
+	update := bson.M{}
+	if req.X != 0 || req.Y != 0 {
+		update["position"] = bson.M{"x": req.X, "y": req.Y, "z": 0, "region": ""}
+	}
+	if req.HP != 0 || req.MaxHP != 0 {
+		update["health"] = bson.M{"current": req.HP, "max": req.MaxHP}
+	}
+	if req.MP != 0 || req.MaxMP != 0 {
+		update["spirit"] = bson.M{"current": req.MP, "max": req.MaxMP}
+	}
+	if req.Level != 0 {
+		update["level"] = req.Level
+	}
+	if req.EXP != 0 {
+		update["xp"] = req.EXP
+	}
+	if req.Gold != 0 {
+		update["gold"] = req.Gold
+	}
+	if req.Attack != 0 {
+		update["strength"] = req.Attack
+	}
+	if req.Defense != 0 {
+		update["defense"] = req.Defense
+	}
+	update["has_seen_intro"] = req.HasSeenIntro
+
+	if err := s.store.UpdateCharacter(context.Background(), charID, update); err != nil {
+		http.Error(w, "Failed to save: "+err.Error(), 500)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "saved"})
 }
 
 type MoveRequest struct {

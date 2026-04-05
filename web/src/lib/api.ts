@@ -2,8 +2,9 @@ import { Character, GameEvent, ChatMessage, InteractResponse } from '@/types';
 
 // Use relative URL to work with reverse proxy on any host
 function getBaseUrl() {
+  // Use relative URLs for proxy - Next.js rewrites /api/* to backend
   if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
+    return '';  // Use relative URL, let Next.js rewrite handle it
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 }
@@ -207,6 +208,24 @@ export const characterProfiles = {
   // 获取指定角色资料
   get: async (npcId: string) => {
     return fetchApi(`/api/characters/profiles/${npcId}`);
+  },
+};
+
+// 角色存档API
+export const characterSave = {
+  // 保存角色游戏状态
+  save: async (characterId: string, state: {
+    x?: number; y?: number;
+    hp?: number; maxHp?: number;
+    mp?: number; maxMp?: number;
+    level?: number; exp?: number;
+    gold?: number; attack?: number; defense?: number;
+    facing?: string; hasSeenIntro?: boolean;
+  }) => {
+    return fetchApi(`/api/characters/${characterId}/save`, {
+      method: 'PUT',
+      body: JSON.stringify(state),
+    });
   },
 };
 
