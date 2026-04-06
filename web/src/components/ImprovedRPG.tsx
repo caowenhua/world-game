@@ -3207,8 +3207,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   }, [player.level]);
 
   // ===================== 剧情界面 =====================
-  const renderStoryOverlay = () => {
-    if (gameState !== 'story') return null;
+  if (gameState === 'story') {
     const cur = STORY_LINES[storyIdx];
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
@@ -3259,7 +3258,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         </div>
       </div>
     );
-  };
+  }
 
   // 游戏结束
   const renderGameoverOverlay = () => {
@@ -3368,7 +3367,6 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
       {/* 条件覆盖层 */}
-      {gameState === 'story' && renderStoryOverlay()}
       {gameState === 'gameover' && renderGameoverOverlay()}
       {showRewards && cardRewards.length > 0 && renderRewardsOverlay()}
       {showCardGame && renderCardGameModal()}
