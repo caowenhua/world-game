@@ -1902,11 +1902,8 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   const savedData = useRef(typeof window !== 'undefined' ? loadGame() : null);
   const hasLoadedSave = useRef(false);
   
-  // 初始化：看过剧情就不再展示，或从存档加载
-  const [gameState, setGameState] = useState<'story' | 'playing' | 'gameover' | 'victory'>(() => {
-    if (savedData.current && savedData.current.hasSeenIntro) return 'playing';
-    return character?.has_seen_intro ? 'playing' : 'story';
-  });
+  // 初始化：默认story（hydration安全），后续useEffect会从存档恢复
+  const [gameState, setGameState] = useState<'story' | 'playing' | 'gameover' | 'victory'>('story');
   const [storyIdx, setStoryIdx] = useState(0);
   const [showText, setShowText] = useState('');
   const [typingDone, setTypingDone] = useState(false);
