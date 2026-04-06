@@ -1468,324 +1468,479 @@ function drawPCFloorTile(ctx: CanvasRenderingContext2D, sx: number, sy: number, 
   ctx.fillRect(sx + 6, sy + 6, 4, 4);
 };
 
-// GBC Pokemon-style player sprite (32x32): Red cap+visor, yellow hair, skin face, blue tunic, brown pants, boots, sword, black outline
-function drawPlayerSprite(ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) {
-  const bounce = Math.sin(frame * 0.15) * 2;
-  if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
-  // Shadow (pixel ellipse)
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(sx - 8, sy + 12, 16, 4);
-  ctx.fillRect(sx - 6, sy + 10, 12, 2);
-  // Black outline for body
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 8, sy - 18 + bounce, 16, 1);
-  ctx.fillRect(sx - 9, sy - 17 + bounce, 1, 18);
-  ctx.fillRect(sx + 8, sy - 17 + bounce, 1, 18);
-  ctx.fillRect(sx - 8, sy + 1 + bounce, 16, 1);
-  // Body - blue tunic (Pokemon trainer style)
-  ctx.fillStyle = '#2962D4';
-  ctx.fillRect(sx - 8, sy - 17 + bounce, 16, 17);
-  ctx.fillStyle = '#1a4ab8';
-  ctx.fillRect(sx - 8, sy + 1 + bounce, 16, 1);
-  // Belt
-  ctx.fillStyle = '#8B4513';
-  ctx.fillRect(sx - 8, sy - 4 + bounce, 16, 3);
-  ctx.fillStyle = '#FFD700';
-  ctx.fillRect(sx - 1, sy - 4 + bounce, 2, 3);
-  // Head (skin)
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 1);
-  ctx.fillRect(sx - 8, sy - 27 + bounce, 1, 10);
-  ctx.fillRect(sx + 7, sy - 27 + bounce, 1, 10);
-  ctx.fillRect(sx - 7, sy - 17 + bounce, 14, 1);
-  ctx.fillStyle = '#FFCC80';
-  ctx.fillRect(sx - 7, sy - 27 + bounce, 14, 9);
-  // Hair (yellow - GBC style)
-  ctx.fillStyle = '#FFD700';
-  ctx.fillRect(sx - 7, sy - 28 + bounce, 14, 4);
-  ctx.fillStyle = '#E5A500';
-  ctx.fillRect(sx - 6, sy - 28 + bounce, 4, 2);
-  // Eyes - distinct pixel eyes (only when facing forward/side)
-  if (facing === 'down' || facing === 'right' || facing === 'left') {
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(sx - 5, sy - 23 + bounce, 3, 3);
-    ctx.fillRect(sx + 2, sy - 23 + bounce, 3, 3);
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(sx - 4, sy - 22 + bounce, 2, 2);
-    ctx.fillRect(sx + 3, sy - 22 + bounce, 2, 2);
-  }
-  // Red cap/visor (Pokemon trainer style)
-  ctx.fillStyle = '#E53935';
-  ctx.fillRect(sx - 8, sy - 30 + bounce, 16, 3);
-  ctx.fillStyle = '#B71C1C';
-  ctx.fillRect(sx - 8, sy - 29 + bounce, 16, 1);
-  // Visor
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(sx - 8, sy - 28 + bounce, 16, 1);
-  // Legs (brown pants)
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 6, sy + 2 + bounce, 5, 1);
-  ctx.fillRect(sx + 1, sy + 2 + bounce, 5, 1);
-  ctx.fillStyle = '#795548';
-  ctx.fillRect(sx - 6, sy + 3 + bounce, 5, 7);
-  ctx.fillRect(sx + 1, sy + 3 + bounce, 5, 7);
-  ctx.fillStyle = '#5D4037';
-  ctx.fillRect(sx - 5, sy + 4 + bounce, 3, 5);
-  ctx.fillRect(sx + 2, sy + 4 + bounce, 3, 5);
-  // Boots
-  ctx.fillStyle = '#5D4037';
-  ctx.fillRect(sx - 7, sy + 9 + bounce, 6, 3);
-  ctx.fillRect(sx + 1, sy + 9 + bounce, 6, 3);
-  ctx.fillStyle = '#3E2723';
-  ctx.fillRect(sx - 7, sy + 11 + bounce, 6, 1);
-  ctx.fillRect(sx + 1, sy + 11 + bounce, 6, 1);
-  // Sword
-  if (facing === 'right' || facing === 'down' || isAttacking) {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx + 11, sy - 16 + bounce, 3, 1);
-    ctx.fillStyle = '#9E9E9E';
-    ctx.fillRect(sx + 11, sy - 15 + bounce, 3, 14);
-    ctx.fillStyle = '#D0D0D0';
-    ctx.fillRect(sx + 11, sy - 15 + bounce, 1, 12);
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(sx + 9, sy - 16 + bounce, 7, 3);
-    ctx.fillStyle = '#DAA520';
-    ctx.fillRect(sx + 9, sy - 14 + bounce, 7, 1);
-    if (isAttacking) {
-      // Attack arc - pixel style
-      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
-      ctx.fillStyle = 'rgba(255,215,0,0.3)';
-      ctx.fillRect(sx - 20, sy - 20 + bounce, 40, 40);
-    }
-  } else if (facing === 'left') {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx - 14, sy - 16 + bounce, 3, 1);
-    ctx.fillStyle = '#9E9E9E';
-    ctx.fillRect(sx - 14, sy - 15 + bounce, 3, 14);
-    ctx.fillStyle = '#D0D0D0';
-    ctx.fillRect(sx - 14, sy - 15 + bounce, 1, 12);
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(sx - 16, sy - 16 + bounce, 7, 3);
-  } else if (facing === 'up') {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx - 1, sy - 28 + bounce, 3, 1);
-    ctx.fillStyle = '#9E9E9E';
-    ctx.fillRect(sx - 1, sy - 27 + bounce, 3, 14);
-    ctx.fillStyle = '#D0D0D0';
-    ctx.fillRect(sx - 1, sy - 27 + bounce, 1, 12);
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(sx - 3, sy - 16 + bounce, 7, 3);
-  }
-};
+// ============================================================
+// GBA像素精灵渲染 - 15位色(32000+色)高质量精灵
+// 特点: 丰富色彩(8-12色/精灵)、黑色描边、底部阴影、多帧动画
+// ============================================================
 
-// GBC Pokemon-style slime (32x32): Green jelly blob, white highlight, big white eyes, black pupils, cute smile
+// GBA玩家精灵 - Pokemon Trainer风格，多帧动画+丰富色彩+描边阴影
+function drawPlayerSprite(ctx: CanvasRenderingContext2D, sx: number, sy: number, facing: string, frame: number, isAttacking: boolean, invincible: number) {
+  // 2帧行走动画
+  const walkFrame = Math.floor(frame / 8) % 2;
+  const bounce = Math.sin(frame * 0.15) * 2;
+  const legOffset = walkFrame === 0 ? 0 : 2;
+  
+  if (invincible > 0 && Math.floor(frame / 4) % 2 === 0) return;
+  
+  // === 底部椭圆阴影 ===
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 14, 12, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // === 武器/剑层（背后）===
+  if (facing === 'left' || facing === 'up') {
+    drawSword(ctx, sx - 12, sy - 20 + bounce, 'back');
+  }
+  
+  // === 身体轮廓描边 ===
+  // 头部外层描边
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(sx - 9, sy - 32 + bounce, 18, 1);
+  ctx.fillRect(sx - 10, sy - 31 + bounce, 1, 11);
+  ctx.fillRect(sx + 9, sy - 31 + bounce, 1, 11);
+  ctx.fillRect(sx - 9, sy - 20 + bounce, 18, 1);
+  
+  // === 红色帽子/头巾 (Pokemon训练师风格) ===
+  ctx.fillStyle = '#C62828'; // 深红
+  ctx.fillRect(sx - 9, sy - 32 + bounce, 18, 4);
+  ctx.fillStyle = '#E53935'; // 亮红
+  ctx.fillRect(sx - 8, sy - 32 + bounce, 16, 3);
+  ctx.fillStyle = '#EF5350'; // 高光
+  ctx.fillRect(sx - 6, sy - 32 + bounce, 6, 2);
+  // 帽檐/护目镜带
+  ctx.fillStyle = '#212121';
+  ctx.fillRect(sx - 9, sy - 29 + bounce, 18, 2);
+  ctx.fillStyle = '#424242';
+  ctx.fillRect(sx - 9, sy - 29 + bounce, 18, 1);
+  
+  // === 黄色头发 ===
+  ctx.fillStyle = '#F9A825'; // 深黄
+  ctx.fillRect(sx - 8, sy - 27 + bounce, 16, 5);
+  ctx.fillStyle = '#FDD835'; // 亮黄
+  ctx.fillRect(sx - 7, sy - 27 + bounce, 14, 4);
+  ctx.fillStyle = '#FFEE58'; // 高光
+  ctx.fillRect(sx - 5, sy - 27 + bounce, 6, 2);
+  // 帽檐下露出的一缕头发
+  ctx.fillStyle = '#F9A825';
+  ctx.fillRect(sx + 4, sy - 24 + bounce, 3, 2);
+  
+  // === 脸部（皮肤色，8色以上）===
+  ctx.fillStyle = '#FFCC80'; // 基础肤色
+  ctx.fillRect(sx - 8, sy - 22 + bounce, 16, 10);
+  ctx.fillStyle = '#FFB74D'; // 阴影肤色
+  ctx.fillRect(sx - 8, sy - 14 + bounce, 16, 2);
+  ctx.fillStyle = '#FFE0B2'; // 高光肤色
+  ctx.fillRect(sx - 6, sy - 21 + bounce, 4, 3);
+  
+  // === 眼睛 ===
+  if (facing === 'down' || facing === 'right' || facing === 'left') {
+    // 眼白
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(sx - 6, sy - 20 + bounce, 4, 4);
+    ctx.fillRect(sx + 2, sy - 20 + bounce, 4, 4);
+    // 虹膜
+    ctx.fillStyle = '#1565C0'; // 蓝色
+    ctx.fillRect(sx - 5, sy - 19 + bounce, 3, 3);
+    ctx.fillRect(sx + 3, sy - 19 + bounce, 3, 3);
+    // 瞳孔
+    ctx.fillStyle = '#0D47A1';
+    ctx.fillRect(sx - 4, sy - 18 + bounce, 2, 2);
+    ctx.fillRect(sx + 4, sy - 18 + bounce, 2, 2);
+    // 眼神高光
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(sx - 5, sy - 20 + bounce, 1, 1);
+    ctx.fillRect(sx + 3, sy - 20 + bounce, 1, 1);
+  }
+  
+  // === 蓝色衣服/战斗服 ===
+  ctx.fillStyle = '#1565C0'; // 深蓝
+  ctx.fillRect(sx - 9, sy - 12 + bounce, 18, 16);
+  ctx.fillStyle = '#1976D2'; // 中蓝
+  ctx.fillRect(sx - 8, sy - 11 + bounce, 16, 14);
+  ctx.fillStyle = '#2196F3'; // 亮蓝
+  ctx.fillRect(sx - 6, sy - 10 + bounce, 12, 8);
+  ctx.fillStyle = '#64B5F6'; // 高光
+  ctx.fillRect(sx - 5, sy - 9 + bounce, 6, 4);
+  // 衣服装饰线
+  ctx.fillStyle = '#0D47A1';
+  ctx.fillRect(sx - 9, sy - 5 + bounce, 18, 1);
+  ctx.fillRect(sx - 9, sy - 1 + bounce, 18, 1);
+  
+  // === 黄色腰带 ===
+  ctx.fillStyle = '#F57F17';
+  ctx.fillRect(sx - 9, sy - 4 + bounce, 18, 3);
+  ctx.fillStyle = '#FFD600'; // 金色
+  ctx.fillRect(sx - 9, sy - 3 + bounce, 18, 1);
+  ctx.fillStyle = '#FFEA00'; // 高光
+  ctx.fillRect(sx - 2, sy - 4 + bounce, 4, 3);
+  // 腰带扣
+  ctx.fillStyle = '#FFD600';
+  ctx.fillRect(sx - 1, sy - 4 + bounce, 2, 3);
+  
+  // === 腿/裤子（棕色+2帧动画）===
+  ctx.fillStyle = '#4E342E'; // 深棕轮廓
+  ctx.fillRect(sx - 7, sy + 4 + bounce - legOffset, 6, 8 + legOffset);
+  ctx.fillRect(sx + 1, sy + 4 + bounce + legOffset, 6, 8 - legOffset);
+  ctx.fillStyle = '#5D4037'; // 棕色裤子
+  ctx.fillRect(sx - 6, sy + 5 + bounce - legOffset, 4, 6 + legOffset);
+  ctx.fillRect(sx + 2, sy + 5 + bounce + legOffset, 4, 6 - legOffset);
+  ctx.fillStyle = '#795548'; // 亮棕高光
+  ctx.fillRect(sx - 5, sy + 5 + bounce - legOffset, 2, 3);
+  ctx.fillRect(sx + 3, sy + 5 + bounce + legOffset, 2, 3);
+  
+  // === 靴子 ===
+  ctx.fillStyle = '#3E2723'; // 深褐轮廓
+  ctx.fillRect(sx - 8, sy + 11 + bounce - legOffset, 7, 4);
+  ctx.fillRect(sx + 1, sy + 11 + bounce + legOffset, 7, 4);
+  ctx.fillStyle = '#5D4037'; // 靴子主体
+  ctx.fillRect(sx - 7, sy + 11 + bounce - legOffset, 5, 3);
+  ctx.fillRect(sx + 2, sy + 11 + bounce + legOffset, 5, 3);
+  ctx.fillStyle = '#8D6E63'; // 靴子高光
+  ctx.fillRect(sx - 6, sy + 11 + bounce - legOffset, 2, 1);
+  ctx.fillRect(sx + 3, sy + 11 + bounce + legOffset, 2, 1);
+  
+  // === 武器/剑层（前景）===
+  if ((facing === 'right' || facing === 'down' || isAttacking)) {
+    drawSword(ctx, sx + 10, sy - 20 + bounce, 'front');
+  }
+  
+  // === 攻击特效 ===
+  if (isAttacking) {
+    // 金色弧光
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy - 5 + bounce, 25, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,215,0,0.15)';
+    ctx.fill();
+    // 白色闪光点
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(sx - 22, sy - 18 + bounce, 3, 3);
+    ctx.fillRect(sx + 19, sy - 12 + bounce, 3, 3);
+    ctx.fillRect(sx - 15, sy + 8 + bounce, 3, 3);
+  }
+}
+
+// 绘制剑的辅助函数
+function drawSword(ctx: CanvasRenderingContext2D, sx: number, sy: number, side: 'front' | 'back') {
+  // 剑柄
+  ctx.fillStyle = '#4E342E';
+  ctx.fillRect(sx, sy, 3, 6);
+  ctx.fillStyle = '#FFD600'; // 金色护手
+  ctx.fillRect(sx - 2, sy - 1, 7, 2);
+  // 剑刃
+  ctx.fillStyle = '#78909C'; // 银灰色
+  ctx.fillRect(sx + 0.5, sy - 18, 2, 18);
+  ctx.fillStyle = '#B0BEC5'; // 高光
+  ctx.fillRect(sx + 0.5, sy - 18, 1, 16);
+  ctx.fillStyle = '#ECEFF1'; // 尖端高光
+  ctx.fillRect(sx + 0.5, sy - 20, 1, 2);
+}
+
+// GBA史莱姆 - 16色以上果冻精灵，弹跳动画+描边+多层高光
 function drawSlime(ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) {
   const squish = Math.sin(frame * 0.15) * 3;
   const s = isElite ? 1.3 : 1;
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(sx - 10 * s, sy + 8 * s, 20 * s, 4 * s);
-  ctx.fillRect(sx - 8 * s, sy + 6 * s, 16 * s, 2 * s);
-  // Body outline (dark green)
-  ctx.fillStyle = isElite ? '#4A148C' : '#2E7D32';
-  ctx.fillRect(sx - 12 * s + squish, sy - 8 * s, (4 + squish) * s, 16 * s);
-  ctx.fillRect(sx + 8 * s - squish, sy - 8 * s, (4 + squish) * s, 16 * s);
-  ctx.fillRect(sx - 12 * s, sy - 8 * s, 24 * s, 2 * s);
-  ctx.fillRect(sx - 12 * s, sy + 8 * s - squish / 2, 24 * s, 2 * s);
-  ctx.fillRect(sx - 12 * s, sy - 6 * s, 2 * s, 14 * s);
-  ctx.fillRect(sx + 10 * s, sy - 6 * s, 2 * s, 14 * s);
-  // Body fill (green jelly)
-  ctx.fillStyle = isElite ? '#7B1FA2' : '#43A047';
-  ctx.fillRect(sx - 10 * s + squish, sy - 6 * s, (20 - squish * 2) * s, 12 * s);
-  ctx.fillRect(sx - 12 * s + squish, sy - 8 * s, (24 - squish * 2) * s, 2 * s);
-  ctx.fillRect(sx - 12 * s + squish, sy + 6 * s - squish / 2, (24 - squish * 2) * s, 2 * s);
-  // Body highlight
-  ctx.fillStyle = isElite ? '#E1BEE7' : '#C8E6C9';
-  ctx.fillRect(sx - 8 * s, sy - 5 * s, 6 * s, 4 * s);
-  ctx.fillStyle = isElite ? '#F3E5F5' : '#E8F5E9';
-  ctx.fillRect(sx - 6 * s, sy - 4 * s, 2 * s, 2 * s);
-  // Eyes (big white anime-style)
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 6 * s, sy - 2 * s, 5 * s, 5 * s);
-  ctx.fillRect(sx + 1 * s, sy - 2 * s, 5 * s, 5 * s);
+  const elite = isElite;
+  
+  // === 椭圆阴影 ===
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 10 * s, 14 * s, 5 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // === 身体黑色描边 ===
+  ctx.fillStyle = elite ? '#1A0A2E' : '#1B5E20';
+  ctx.fillRect(sx - 13 * s + squish, sy - 10 * s, (5 + squish) * s, 18 * s);
+  ctx.fillRect(sx + 8 * s - squish, sy - 10 * s, (5 + squish) * s, 18 * s);
+  ctx.fillRect(sx - 13 * s, sy - 10 * s, 26 * s, 3 * s);
+  ctx.fillRect(sx - 13 * s, sy + 8 * s - squish/2, 26 * s, 3 * s);
+  
+  // === 身体主体（多色渐变果冻）===
+  ctx.fillStyle = elite ? '#6A1B9A' : '#2E7D32';
+  ctx.fillRect(sx - 11 * s + squish, sy - 8 * s, (22 - squish * 2) * s, 14 * s);
+  ctx.fillRect(sx - 13 * s + squish, sy - 10 * s, (26 - squish * 2) * s, 2 * s);
+  ctx.fillRect(sx - 13 * s + squish, sy + 6 * s - squish/2, (26 - squish * 2) * s, 2 * s);
+  
+  // 果冻中层颜色
+  ctx.fillStyle = elite ? '#8E24AA' : '#43A047';
+  ctx.fillRect(sx - 9 * s + squish, sy - 7 * s, (18 - squish * 2) * s, 12 * s);
+  
+  // 果冻亮部（偏白/偏绿）
+  ctx.fillStyle = elite ? '#AB47BC' : '#66BB6A';
+  ctx.fillRect(sx - 7 * s + squish, sy - 6 * s, (14 - squish * 2) * s, 8 * s);
+  
+  // === 高光层（GBA精灵特有）===
+  ctx.fillStyle = elite ? '#CE93D8' : '#A5D6A7';
+  ctx.fillRect(sx - 9 * s, sy - 6 * s, 7 * s, 4 * s);
+  ctx.fillStyle = elite ? '#E1BEE7' : '#C8E6C9';
+  ctx.fillRect(sx - 7 * s, sy - 5 * s, 3 * s, 2 * s);
+  ctx.fillStyle = elite ? '#F3E5F5' : '#E8F5E9';
+  ctx.fillRect(sx - 6 * s, sy - 4 * s, 2 * s, 1 * s);
+  
+  // === 眼睛（大而可爱）===
+  // 眼白
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(sx - 7 * s, sy - 3 * s, 6 * s, 6 * s);
+  ctx.fillRect(sx + 1 * s, sy - 3 * s, 6 * s, 6 * s);
+  // 虹膜
+  ctx.fillStyle = elite ? '#FFD700' : '#1565C0';
+  ctx.fillRect(sx - 6 * s, sy - 2 * s, 4 * s, 4 * s);
+  ctx.fillRect(sx + 2 * s, sy - 2 * s, 4 * s, 4 * s);
+  // 瞳孔
+  ctx.fillStyle = '#0D47A1';
+  ctx.fillRect(sx - 5 * s, sy - 1 * s, 2 * s, 2 * s);
+  ctx.fillRect(sx + 3 * s, sy - 1 * s, 2 * s, 2 * s);
+  // 眼神高光
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(sx - 6 * s, sy - 3 * s, 2 * s, 2 * s);
+  ctx.fillRect(sx + 2 * s, sy - 3 * s, 2 * s, 2 * s);
+  
+  // === 嘴巴（可爱笑脸）===
   ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(sx - 4 * s, sy - 1 * s, 3 * s, 3 * s);
-  ctx.fillRect(sx + 3 * s, sy - 1 * s, 3 * s, 3 * s);
-  // Eye shine
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 5 * s, sy - 2 * s, 1 * s, 1 * s);
-  ctx.fillRect(sx + 2 * s, sy - 2 * s, 1 * s, 1 * s);
-  // Cute smile
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(sx - 2 * s, sy + 3 * s, 4 * s, 1 * s);
-  ctx.fillRect(sx - 3 * s, sy + 2 * s, 1 * s, 1 * s);
-  ctx.fillRect(sx + 2 * s, sy + 2 * s, 1 * s, 1 * s);
-  // Elite star
-  if (isElite) {
+  ctx.fillRect(sx - 3 * s, sy + 3 * s, 6 * s, 2 * s);
+  ctx.fillRect(sx - 4 * s, sy + 2 * s, 2 * s, 2 * s);
+  ctx.fillRect(sx + 2 * s, sy + 2 * s, 2 * s, 2 * s);
+  // 腮红
+  ctx.fillStyle = elite ? 'rgba(255,105,180,0.4)' : 'rgba(255,182,193,0.4)';
+  ctx.fillRect(sx - 9 * s, sy + 1 * s, 3 * s, 2 * s);
+  ctx.fillRect(sx + 6 * s, sy + 1 * s, 3 * s, 2 * s);
+  
+  // === 精英星标 ===
+  if (elite) {
     ctx.fillStyle = '#FFD700';
-    ctx.fillRect(sx - 3, sy - 14, 2, 2);
-    ctx.fillRect(sx - 4, sy - 13, 4, 1);
-    ctx.fillRect(sx - 3, sy - 12, 2, 2);
+    ctx.fillRect(sx - 3, sy - 18, 2, 2);
+    ctx.fillRect(sx - 4, sy - 17, 4, 1);
+    ctx.fillRect(sx - 3, sy - 16, 2, 2);
+    // 光芒效果
+    ctx.fillStyle = 'rgba(255,215,0,0.5)';
+    ctx.fillRect(sx - 5, sy - 19, 1, 1);
+    ctx.fillRect(sx + 4, sy - 19, 1, 1);
+    ctx.fillRect(sx - 6, sy - 18, 1, 1);
+    ctx.fillRect(sx + 5, sy - 18, 1, 1);
   }
-};
+}
 
-// GBC Pokemon-style wolf (32x32): Gray-brown fur, pointed ears, red eyes, visible fangs, bushy tail
+// GBA灰狼 - 毛皮渐变色彩(8色+)，尖耳朵，红眼，奔跑帧动画，精英暗蓝
 function drawWolf(ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) {
   const run = Math.abs(Math.sin(frame * 0.3)) * 3;
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(sx - 12, sy + 10, 24, 4);
-  ctx.fillRect(sx - 10, sy + 8, 20, 2);
-  // Body outline
+  const runFrame = Math.floor(frame / 6) % 2;
+  const elite = isElite;
+  
+  // === 椭圆阴影 ===
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 12, 16, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // === 身体黑色描边 ===
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(sx - 16, sy - 10, 32, 18);
+  
+  // === 尾巴（蓬松）===
+  ctx.fillStyle = elite ? '#263238' : '#5D4037';
+  ctx.fillRect(sx - 22, sy - 8, 8, 10);
+  ctx.fillRect(sx - 24, sy - 10, 6, 6);
+  ctx.fillRect(sx - 25, sy - 12, 3, 3);
+  ctx.fillStyle = elite ? '#37474F' : '#795548';
+  ctx.fillRect(sx - 21, sy - 8, 6, 8);
+  ctx.fillStyle = elite ? '#546E7A' : '#8D6E63';
+  ctx.fillRect(sx - 20, sy - 7, 4, 6);
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 14, sy - 8, 28, 16);
-  // Body
-  ctx.fillStyle = isElite ? '#37474F' : '#795548';
+  ctx.fillRect(sx - 22, sy - 8, 8, 1);
+  
+  // === 身体（多层毛皮颜色）===
+  ctx.fillStyle = elite ? '#1C313A' : '#5D4037';
+  ctx.fillRect(sx - 15, sy - 8, 30, 16);
+  ctx.fillStyle = elite ? '#37474F' : '#795548';
   ctx.fillRect(sx - 14, sy - 7, 28, 14);
-  // Fur detail (lighter patches)
-  ctx.fillStyle = isElite ? '#546E7A' : '#8D6E63';
-  ctx.fillRect(sx - 10, sy - 5, 8, 4);
-  ctx.fillRect(sx + 2, sy - 5, 8, 4);
-  // Head outline
+  ctx.fillStyle = elite ? '#455A64' : '#8D6E63';
+  ctx.fillRect(sx - 12, sy - 6, 24, 10);
+  ctx.fillStyle = elite ? '#546E7A' : '#A1887F';
+  ctx.fillRect(sx - 10, sy - 5, 20, 6);
+  ctx.fillStyle = elite ? '#78909C' : '#BCAAA4';
+  ctx.fillRect(sx - 8, sy - 4, 12, 3);
+  
+  // === 头部轮廓 ===
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 8, sy - 22, 16, 16);
-  // Head
-  ctx.fillStyle = isElite ? '#37474F' : '#795548';
-  ctx.fillRect(sx - 7, sy - 21, 14, 14);
-  // Snout outline
+  ctx.fillRect(sx - 10, sy - 24, 20, 18);
+  
+  // === 头部主体 ===
+  ctx.fillStyle = elite ? '#263238' : '#5D4037';
+  ctx.fillRect(sx - 9, sy - 23, 18, 16);
+  ctx.fillStyle = elite ? '#37474F' : '#795548';
+  ctx.fillRect(sx - 8, sy - 22, 16, 14);
+  ctx.fillStyle = elite ? '#455A64' : '#8D6E63';
+  ctx.fillRect(sx - 7, sy - 21, 14, 10);
+  
+  // === 口鼻部 ===
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 4, sy - 14, 10, 8);
-  // Snout
-  ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
-  ctx.fillRect(sx - 3, sy - 13, 9, 6);
-  // Nose
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(sx + 3, sy - 13, 3, 3);
-  // Eyes (red, menacing)
-  ctx.fillStyle = isElite ? '#FF1744' : '#F44336';
-  ctx.fillRect(sx - 6, sy - 18, 4, 4);
-  ctx.fillRect(sx + 2, sy - 18, 4, 4);
-  // Eye shine
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 6, sy - 18, 1, 1);
-  ctx.fillRect(sx + 2, sy - 18, 1, 1);
-  // Pointed ears (pixel triangles)
-  ctx.fillStyle = isElite ? '#37474F' : '#795548';
-  ctx.fillRect(sx - 8, sy - 24, 4, 4);
-  ctx.fillRect(sx - 9, sy - 26, 2, 2);
-  ctx.fillRect(sx - 10, sy - 27, 1, 1);
-  ctx.fillRect(sx + 4, sy - 24, 4, 4);
-  ctx.fillRect(sx + 7, sy - 26, 2, 2);
-  ctx.fillRect(sx + 9, sy - 27, 1, 1);
-  // Ear inner
-  ctx.fillStyle = isElite ? '#546E7A' : '#A1887F';
-  ctx.fillRect(sx - 7, sy - 23, 2, 2);
-  ctx.fillRect(sx + 5, sy - 23, 2, 2);
-  // Tail (bushy)
-  ctx.fillStyle = isElite ? '#455A64' : '#8D6E63';
-  ctx.fillRect(sx - 18, sy - 6, 6, 8);
-  ctx.fillRect(sx - 20, sy - 8, 4, 4);
-  ctx.fillRect(sx - 21, sy - 10, 2, 2);
+  ctx.fillRect(sx - 5, sy - 16, 12, 10);
+  ctx.fillStyle = elite ? '#37474F' : '#795548';
+  ctx.fillRect(sx - 4, sy - 15, 10, 8);
+  ctx.fillStyle = elite ? '#546E7A' : '#A1887F';
+  ctx.fillRect(sx - 3, sy - 14, 8, 6);
+  
+  // === 鼻子 ===
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(sx + 3, sy - 15, 4, 4);
+  ctx.fillStyle = '#37474F';
+  ctx.fillRect(sx + 3, sy - 15, 2, 2);
+  
+  // === 眼睛（红色凶光）===
+  ctx.fillStyle = elite ? '#FF1744' : '#D32F2F';
+  ctx.fillRect(sx - 7, sy - 20, 5, 5);
+  ctx.fillRect(sx + 2, sy - 20, 5, 5);
+  ctx.fillStyle = elite ? '#FF5252' : '#F44336';
+  ctx.fillRect(sx - 6, sy - 19, 4, 4);
+  ctx.fillRect(sx + 3, sy - 19, 4, 4);
+  ctx.fillStyle = '#FFCDD2';
+  ctx.fillRect(sx - 7, sy - 20, 2, 2);
+  ctx.fillRect(sx + 2, sy - 20, 2, 2);
+  
+  // === 尖耳朵（多层三角形）===
+  ctx.fillStyle = elite ? '#263238' : '#5D4037';
+  ctx.fillRect(sx - 9, sy - 28, 5, 6);
+  ctx.fillRect(sx - 11, sy - 30, 4, 4);
+  ctx.fillRect(sx - 13, sy - 32, 3, 3);
+  ctx.fillRect(sx + 4, sy - 28, 5, 6);
+  ctx.fillRect(sx + 7, sy - 30, 4, 4);
+  ctx.fillRect(sx + 10, sy - 32, 3, 3);
+  // 耳朵内部
+  ctx.fillStyle = elite ? '#B71C1C' : '#8D6E63';
+  ctx.fillRect(sx - 8, sy - 27, 3, 4);
+  ctx.fillRect(sx + 5, sy - 27, 3, 4);
+  
+  // === 腿（带跑步动画）===
+  const leg1Offset = runFrame === 0 ? -run : 0;
+  const leg2Offset = runFrame === 0 ? run : 0;
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 18, sy - 6, 6, 1);
-  // Legs
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run);
-  ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run);
-  ctx.fillStyle = isElite ? '#263238' : '#5D4037';
-  ctx.fillRect(sx - 10, sy + 8 - run, 5, 6 + run);
-  ctx.fillRect(sx + 5, sy + 8 + run, 5, 6 - run);
-  // Fangs (visible when attacking)
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 2, sy - 9, 2, 2);
-  ctx.fillRect(sx + 2, sy - 9, 2, 2);
-  // Elite aura
-  if (isElite) {
-    ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(sx - 20, sy - 24, 40, 48);
-    ctx.setLineDash([]);
-  }
-};
+  ctx.fillRect(sx - 11, sy + 8 + leg1Offset, 6, 6 - leg1Offset);
+  ctx.fillRect(sx + 5, sy + 8 + leg2Offset, 6, 6 - leg2Offset);
+  ctx.fillStyle = elite ? '#1C313A' : '#4E342E';
+  ctx.fillRect(sx - 11, sy + 8 + leg1Offset, 6, 5 - leg1Offset);
+  ctx.fillRect(sx + 5, sy + 8 + leg2Offset, 6, 5 - leg2Offset);
+  ctx.fillStyle = elite ? '#37474F' : '#5D4037';
+  ctx.fillRect(sx - 10, sy + 9 + leg1Offset, 4, 3 - leg1Offset);
+  ctx.fillRect(sx + 6, sy + 9 + leg2Offset, 4, 3 - leg2Offset);
+  
+  // === 獠牙 ===
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(sx - 3, sy - 11, 2, 3);
+  ctx.fillRect(sx + 1, sy - 11, 2, 3);
+  ctx.fillStyle = '#CFD8DC';
+  ctx.fillRect(sx - 3, sy - 11, 1, 2);
+  ctx.fillRect(sx + 1, sy - 11, 1, 2);
+}
 
-// GBC Pokemon-style goblin (32x32): Green skin, big pointy ears, yellow eyes, wooden club
+// GBA哥布林 - 绿皮+大耳朵+黄色眼睛+木棒，多色层次，跳跃动画
 function drawGoblin(ctx: CanvasRenderingContext2D, sx: number, sy: number, frame: number, isElite: boolean = false) {
   const hop = Math.abs(Math.sin(frame * 0.2)) * 3;
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(sx - 8, sy + 10, 16, 4);
-  ctx.fillRect(sx - 6, sy + 8, 12, 2);
-  // Body outline
+  const elite = isElite;
+  
+  // === 椭圆阴影 ===
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 12, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // === 身体黑色描边 ===
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 7, sy - 12 + hop, 14, 16);
-  // Body (small, cartoon proportion)
-  ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
-  ctx.fillRect(sx - 7, sy - 11 + hop, 14, 14);
-  // Body detail
-  ctx.fillStyle = isElite ? '#2E7D32' : '#7CB342';
-  ctx.fillRect(sx - 5, sy - 9 + hop, 10, 10);
-  // Head outline
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 8, sy - 24 + hop, 16, 14);
-  // Head (big ears, small face)
-  ctx.fillStyle = isElite ? '#2E7D32' : '#7CB342';
-  ctx.fillRect(sx - 7, sy - 23 + hop, 14, 12);
-  // Big pointy ears (pixel triangles)
-  ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
-  ctx.fillRect(sx - 12, sy - 26 + hop, 6, 6);
-  ctx.fillRect(sx - 14, sy - 28 + hop, 4, 4);
-  ctx.fillRect(sx - 15, sy - 30 + hop, 2, 2);
-  ctx.fillRect(sx + 6, sy - 26 + hop, 6, 6);
-  ctx.fillRect(sx + 10, sy - 28 + hop, 4, 4);
-  ctx.fillRect(sx + 13, sy - 30 + hop, 2, 2);
-  // Ear inner
-  ctx.fillStyle = isElite ? '#4CAF50' : '#AED581';
-  ctx.fillRect(sx - 11, sy - 25 + hop, 4, 4);
-  ctx.fillRect(sx + 7, sy - 25 + hop, 4, 4);
-  // Eyes (big yellow, menacing)
-  ctx.fillStyle = '#FFEB3B';
-  ctx.fillRect(sx - 6, sy - 20 + hop, 4, 4);
-  ctx.fillRect(sx + 2, sy - 20 + hop, 4, 4);
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(sx - 5, sy - 19 + hop, 2, 2);
-  ctx.fillRect(sx + 3, sy - 19 + hop, 2, 2);
-  // Eye shine
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 6, sy - 20 + hop, 1, 1);
-  ctx.fillRect(sx + 2, sy - 20 + hop, 1, 1);
-  // Nose
-  ctx.fillStyle = '#33691E';
-  ctx.fillRect(sx - 2, sy - 17 + hop, 4, 3);
-  // Mouth with fangs
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 4, sy - 14 + hop, 8, 2);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(sx - 4, sy - 14 + hop, 2, 2);
-  ctx.fillRect(sx + 2, sy - 14 + hop, 2, 2);
-  // Club/weapon
-  ctx.fillStyle = '#000';
-  ctx.fillRect(sx + 10, sy - 14 + hop, 4, 18);
-  ctx.fillStyle = '#795548';
-  ctx.fillRect(sx + 10, sy - 13 + hop, 4, 16);
-  ctx.fillStyle = '#5D4037';
-  ctx.fillRect(sx + 8, sy - 16 + hop, 8, 6);
+  ctx.fillRect(sx - 9, sy - 14 + hop, 18, 18);
+  
+  // === 木棒武器 ===
   ctx.fillStyle = '#3E2723';
-  ctx.fillRect(sx + 9, sy - 15 + hop, 6, 4);
-  // Legs
+  ctx.fillRect(sx + 10, sy - 16 + hop, 5, 20);
+  ctx.fillStyle = '#5D4037';
+  ctx.fillRect(sx + 11, sy - 15 + hop, 3, 18);
+  ctx.fillStyle = '#8D6E63';
+  ctx.fillRect(sx + 11, sy - 14 + hop, 1, 16);
+  ctx.fillStyle = '#4E342E';
+  ctx.fillRect(sx + 8, sy - 18 + hop, 9, 8);
+  ctx.fillStyle = '#6D4C41';
+  ctx.fillRect(sx + 9, sy - 17 + hop, 7, 6);
+  
+  // === 身体（短腿卡通比例）===
+  ctx.fillStyle = elite ? '#1B5E20' : '#388E3C';
+  ctx.fillRect(sx - 8, sy - 12 + hop, 16, 16);
+  ctx.fillStyle = elite ? '#2E7D32' : '#43A047';
+  ctx.fillRect(sx - 7, sy - 11 + hop, 14, 14);
+  ctx.fillStyle = elite ? '#388E3C' : '#4CAF50';
+  ctx.fillRect(sx - 6, sy - 9 + hop, 12, 10);
+  ctx.fillStyle = elite ? '#4CAF50' : '#66BB6A';
+  ctx.fillRect(sx - 4, sy - 7 + hop, 8, 6);
+  
+  // === 头部 ===
   ctx.fillStyle = '#000';
-  ctx.fillRect(sx - 6, sy + 4 + hop, 5, 6);
-  ctx.fillRect(sx + 1, sy + 4 + hop, 5, 6);
-  ctx.fillStyle = isElite ? '#1B5E20' : '#558B2F';
-  ctx.fillRect(sx - 6, sy + 4 + hop, 5, 5);
-  ctx.fillRect(sx + 1, sy + 4 + hop, 5, 5);
-  // Elite star
-  if (isElite) {
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(sx - 3, sy - 32 + hop, 2, 2);
-    ctx.fillRect(sx - 4, sy - 31 + hop, 4, 1);
-    ctx.fillRect(sx - 3, sy - 30 + hop, 2, 2);
-  }
-};
+  ctx.fillRect(sx - 10, sy - 26 + hop, 20, 16);
+  ctx.fillStyle = elite ? '#1B5E20' : '#388E3C';
+  ctx.fillRect(sx - 9, sy - 25 + hop, 18, 14);
+  ctx.fillStyle = elite ? '#2E7D32' : '#43A047';
+  ctx.fillRect(sx - 8, sy - 24 + hop, 16, 12);
+  ctx.fillStyle = elite ? '#388E3C' : '#66BB6A';
+  ctx.fillRect(sx - 6, sy - 22 + hop, 12, 8);
+  
+  // === 大耳朵（多层尖耳）===
+  ctx.fillStyle = elite ? '#1B5E20' : '#388E3C';
+  ctx.fillRect(sx - 15, sy - 30 + hop, 8, 8);
+  ctx.fillRect(sx - 18, sy - 34 + hop, 5, 6);
+  ctx.fillRect(sx - 20, sy - 37 + hop, 3, 3);
+  ctx.fillRect(sx + 7, sy - 30 + hop, 8, 8);
+  ctx.fillRect(sx + 13, sy - 34 + hop, 5, 6);
+  ctx.fillRect(sx + 17, sy - 37 + hop, 3, 3);
+  // 耳朵内部
+  ctx.fillStyle = elite ? '#66BB6A' : '#A5D6A7';
+  ctx.fillRect(sx - 14, sy - 29 + hop, 6, 6);
+  ctx.fillRect(sx + 8, sy - 29 + hop, 6, 6);
+  ctx.fillStyle = elite ? '#A5D6A7' : '#C8E6C9';
+  ctx.fillRect(sx - 13, sy - 28 + hop, 4, 4);
+  ctx.fillRect(sx + 9, sy - 28 + hop, 4, 4);
+  
+  // === 眼睛（黄色大眼）===
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(sx - 7, sy - 22 + hop, 5, 5);
+  ctx.fillRect(sx + 2, sy - 22 + hop, 5, 5);
+  ctx.fillStyle = '#F9A825';
+  ctx.fillRect(sx - 6, sy - 21 + hop, 4, 4);
+  ctx.fillRect(sx + 3, sy - 21 + hop, 4, 4);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(sx - 5, sy - 20 + hop, 3, 3);
+  ctx.fillRect(sx + 4, sy - 20 + hop, 3, 3);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(sx - 7, sy - 22 + hop, 2, 2);
+  ctx.fillRect(sx + 2, sy - 22 + hop, 2, 2);
+  
+  // === 鼻子 ===
+  ctx.fillStyle = elite ? '#2E7D32' : '#1B5E20';
+  ctx.fillRect(sx - 3, sy - 18 + hop, 6, 4);
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(sx - 2, sy - 17 + hop, 4, 2);
+  
+  // === 嘴巴（獠牙）===
+  ctx.fillStyle = '#000';
+  ctx.fillRect(sx - 5, sy - 14 + hop, 10, 3);
+  ctx.fillStyle = '#1B5E20';
+  ctx.fillRect(sx - 4, sy - 13 + hop, 8, 2);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(sx - 5, sy - 15 + hop, 3, 3);
+  ctx.fillRect(sx + 2, sy - 15 + hop, 3, 3);
+  ctx.fillStyle = '#E0E0E0';
+  ctx.fillRect(sx - 5, sy - 15 + hop, 1, 2);
+  ctx.fillRect(sx + 2, sy - 15 + hop, 1, 2);
+  
+  // === 腿 ===
+  ctx.fillStyle = '#000';
+  ctx.fillRect(sx - 7, sy + 5 + hop, 6, 7);
+  ctx.fillRect(sx + 1, sy + 5 + hop, 6, 7);
+  ctx.fillStyle = elite ? '#1B5E20' : '#388E3C';
+  ctx.fillRect(sx - 7, sy + 5 + hop, 6, 6);
+  ctx.fillRect(sx + 1, sy + 5 + hop, 6, 6);
+  ctx.fillStyle = elite ? '#2E7D32' : '#43A047';
+  ctx.fillRect(sx - 6, sy + 6 + hop, 4, 4);
+  ctx.fillRect(sx + 2, sy + 6 + hop, 4, 4);
+}
 
 // Monster sprite dispatcher - kept inside component for access to monsters type
 // (Bug #13: drawXxxTile functions moved to module level, but monster type needs component scope)
@@ -1880,6 +2035,78 @@ function drawDealer(ctx: CanvasRenderingContext2D, sx: number, sy: number, deale
   ctx.fillText(dealer.icon, sx - 6, sy + 2);
 };
 
+// ============================================================
+// 建筑入口光圈效果 - 金色/蓝色渐变脉冲光环
+// ============================================================
+function drawEntranceGlow(ctx: CanvasRenderingContext2D, tileX: number, tileY: number, frame: number) {
+  const pulse = Math.sin((frame || 0) * 0.06) * 0.3 + 0.7;
+  const cx = tileX * TILE_SIZE + TILE_SIZE / 2;
+  const cy = tileY * TILE_SIZE + TILE_SIZE / 2;
+  
+  // 外层光圈（蓝色脉冲）
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 0.9 * pulse, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(100, 180, 255, ${0.6 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // 中层光圈（蓝色到金色渐变）
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 0.7 * pulse, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(200, 220, 255, ${0.4 * pulse})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  // 内层光圈（金色）
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 0.5, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // 中心点（白色闪烁）
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * pulse})`;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 光晕效果
+  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE_SIZE * 1.2);
+  gradient.addColorStop(0, `rgba(255, 215, 0, ${0.15 * pulse})`);
+  gradient.addColorStop(0.5, `rgba(100, 180, 255, ${0.1 * pulse})`);
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// 出口光圈（室内地图）
+function drawExitGlow(ctx: CanvasRenderingContext2D, tileX: number, tileY: number, frame: number) {
+  const pulse = Math.sin((frame || 0) * 0.08 + 1) * 0.3 + 0.7;
+  const cx = tileX * TILE_SIZE + TILE_SIZE / 2;
+  const cy = tileY * TILE_SIZE + TILE_SIZE / 2;
+  
+  // 绿色出口光圈
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 0.8 * pulse, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(100, 255, 150, ${0.7 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.arc(cx, cy, TILE_SIZE * 0.5, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(200, 255, 200, ${0.8 * pulse})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * pulse})`;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// GBA宝箱 - 木箱+金色装饰+弹跳动画
 function drawTreasure(ctx: CanvasRenderingContext2D, sx: number, sy: number, opened: boolean, frame: number) {
   if (opened) return;
   const bounce = Math.sin(frame * 0.1) * 2;
@@ -3033,6 +3260,8 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     if (gameState !== 'playing' || !canvasRef.current) return;
     const cvs = canvasRef.current;
     const ctx = cvs.getContext('2d'); if (!ctx) return;
+    // GBA像素风格：禁用抗锯齿，保持像素锐利
+    ctx.imageSmoothingEnabled = false;
     const W = cvs.width, H = cvs.height;
     // Sky gradient background - lighter for visibility
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
@@ -3072,6 +3301,30 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           if (mx < 0 || my < 0 || mx >= map.width || my >= map.height) continue;
         }
         drawTile(ctx, terrain, tx * TILE_SIZE + ox, ty * TILE_SIZE + oy, mx, my, animFrame);
+      }
+    }
+
+    // ============================================================
+    // 建筑入口光圈效果 - 室外显示金色/蓝色脉冲光环
+    // ============================================================
+    if (indoorMapId === 'none') {
+      BUILDING_ENTRIES.forEach(entry => {
+        const sx = (entry.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+        const sy = (entry.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
+        if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) return;
+        drawEntranceGlow(ctx, entry.x - camera.x, entry.y - camera.y, animFrame);
+      });
+    }
+
+    // ============================================================
+    // 室内地图出口光圈效果
+    // ============================================================
+    if (indoorMapId !== 'none') {
+      const map = INDOOR_MAPS[indoorMapId];
+      const ex = (map.exitPos.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
+      const ey = (map.exitPos.y - camera.y) * TILE_SIZE + TILE_SIZE / 2;
+      if (ex > -50 && ex < W + 50 && ey > -50 && ey < H + 50) {
+        drawExitGlow(ctx, map.exitPos.x - camera.x, map.exitPos.y - camera.y, animFrame);
       }
     }
 
@@ -3367,24 +3620,121 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
       {gameState === 'gameover' && renderGameoverOverlay()}
       {showRewards && cardRewards.length > 0 && renderRewardsOverlay()}
       {showCardGame && renderCardGameModal()}
-      {/* 顶部状态栏 */}
-      <div className="h-14 bg-slate-900/90 border-b border-slate-700 flex items-center px-4 gap-6 z-10">
-        <div className="flex items-center gap-2"><span className="text-yellow-400">👤</span><span className="text-white font-bold">{player.level}级</span></div>
-        <div className="flex-1 max-w-[200px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>HP</span><span>{player.hp}/{player.maxHp}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-green-500 transition-all" style={{ width: `${player.hp / player.maxHp * 100}%` }} /></div>
+      {/* ============================================================
+          GBA绿宝石风格顶部状态栏 - 浅蓝色渐变+分段式HP/MP条+像素边框
+      ============================================================ */}
+      <div className="h-14 bg-gradient-to-r from-blue-300 to-blue-200 border-b-4 border-l-4 border-r-4 border-blue-400 flex items-center px-3 gap-4 z-10" style={{ fontFamily: "'Courier New', monospace" }}>
+        {/* 精灵球图标 */}
+        <div className="flex items-center gap-1">
+          <div className="w-5 h-5 rounded-full bg-white border-2 border-gray-600 flex items-center justify-center">
+            <div className="w-5 h-0.5 bg-gray-600" />
+          </div>
+          <div className="w-5 h-5 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-white" />
+          </div>
         </div>
-        <div className="flex-1 max-w-[150px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>MP</span><span>{player.mp}/{player.maxMp}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all" style={{ width: `${player.mp / player.maxMp * 100}%` }} /></div>
+        
+        {/* 角色名+等级徽章 */}
+        <div className="flex items-center gap-2">
+          <div className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-sm border border-blue-800 shadow-sm">
+            Lv{player.level}
+          </div>
+          <span className="text-blue-900 font-bold text-sm">训练师</span>
         </div>
-        <div className="flex-1 max-w-[150px]">
-          <div className="flex justify-between text-xs text-slate-400 mb-1"><span>能量</span><span>{player.energy}/{player.maxEnergy}</span></div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-500 transition-all" style={{ width: `${player.energy / player.maxEnergy * 100}%` }} /></div>
+
+        {/* HP条 - GBA分段式 */}
+        <div className="flex-1 max-w-[220px]">
+          <div className="flex justify-between text-xs text-blue-900 mb-0.5 font-bold">
+            <span>HP</span>
+            <span>{player.hp}/{player.maxHp}</span>
+          </div>
+          <div className="h-3 bg-white border-2 border-green-800 rounded-sm overflow-hidden flex">
+            {Array.from({length: 10}).map((_, i) => {
+              const hpPerBox = player.maxHp / 10;
+              const filledBoxes = Math.ceil(player.hp / hpPerBox);
+              const isFilled = i < filledBoxes;
+              return (
+                <div key={i} 
+                  className={`flex-1 ${i < 9 ? 'border-r border-green-700' : ''} ${isFilled ? 'bg-green-500' : 'bg-green-200'}`}
+                  style={{ opacity: isFilled ? 1 : 0.3 }}
+                />
+              );
+            })}
+          </div>
         </div>
-        <div className="text-slate-400 text-sm">💰 {player.gold}</div>
-        <div className="text-slate-400 text-sm">EXP: {player.exp}/{player.expToLevel}</div>
-        <button onClick={() => setShowCardGame(true)} className="ml-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-white text-sm font-bold flex items-center gap-1">
+
+        {/* MP条 - GBA分段式 */}
+        <div className="flex-1 max-w-[160px]">
+          <div className="flex justify-between text-xs text-blue-900 mb-0.5 font-bold">
+            <span>MP</span>
+            <span>{player.mp}/{player.maxMp}</span>
+          </div>
+          <div className="h-3 bg-white border-2 border-blue-800 rounded-sm overflow-hidden flex">
+            {Array.from({length: 8}).map((_, i) => {
+              const mpPerBox = player.maxMp / 8;
+              const filledBoxes = Math.ceil(player.mp / mpPerBox);
+              const isFilled = i < filledBoxes;
+              return (
+                <div key={i} 
+                  className={`flex-1 ${i < 7 ? 'border-r border-blue-700' : ''} ${isFilled ? 'bg-blue-500' : 'bg-blue-200'}`}
+                  style={{ opacity: isFilled ? 1 : 0.3 }}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 能量条 */}
+        <div className="flex-1 max-w-[100px]">
+          <div className="flex justify-between text-xs text-blue-900 mb-0.5 font-bold">
+            <span>能量</span>
+            <span>{player.energy}/{player.maxEnergy}</span>
+          </div>
+          <div className="h-3 bg-white border-2 border-yellow-600 rounded-sm overflow-hidden flex">
+            {Array.from({length: 5}).map((_, i) => (
+              <div key={i} 
+                className={`flex-1 ${i < 4 ? 'border-r border-yellow-600' : ''} ${i < player.energy ? 'bg-yellow-400' : 'bg-yellow-200'}`}
+                style={{ opacity: i < player.energy ? 1 : 0.3 }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* 金币 */}
+        <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 border-2 border-yellow-500 rounded-sm">
+          <span className="text-yellow-600 text-sm">💰</span>
+          <span className="text-yellow-700 font-bold text-sm">{player.gold}</span>
+        </div>
+
+        {/* EXP条 */}
+        <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 border-2 border-purple-500 rounded-sm">
+          <span className="text-purple-600 text-xs">EXP</span>
+          <span className="text-purple-700 font-bold text-xs">{player.exp}/{player.expToLevel}</span>
+        </div>
+
+        {/* 存档按钮 */}
+        <button 
+          onClick={() => {
+            const data: SaveData = {
+              x: player.x, y: player.y, hasSeenIntro: true,
+              hp: player.hp, maxHp: player.maxHp, mp: player.mp, maxMp: player.maxMp,
+              level: player.level, exp: player.exp, expToLevel: player.expToLevel,
+              gold: player.gold, collectedCards, deckIndex,
+              storyFlags, consecutiveDeaths: consecutiveDeathsRef.current,
+              atk: player.atk, def: player.def, indoorMapId, outdoorPlayerPos,
+              boardProgress: boardProgressRef.current,
+            };
+            saveGame(data);
+            setAdaptiveBuffMessage('游戏已保存！');
+            setTimeout(() => setAdaptiveBuffMessage(''), 2000);
+          }}
+          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 border-2 border-amber-700 text-amber-900 font-bold text-xs rounded-t-lg shadow-sm transition-colors"
+        >
+          💾 存档
+        </button>
+
+        {/* 卡组按钮 */}
+        <button onClick={() => setShowCardGame(true)} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 border-2 border-purple-800 text-white text-xs font-bold rounded-t-lg shadow-sm transition-colors">
           🃏 卡组
         </button>
       </div>
@@ -3492,10 +3842,12 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           </div>
         )}
 
-        {/* P1-4: 虚拟双轴摇杆 */}
+        {/* ============================================================
+            GBA风格虚拟摇杆 - 圆形底座+可移动把手+方向指示
+        ============================================================ */}
         <div
           ref={joystickContainerRef}
-          className="absolute bottom-24 left-8 w-24 h-24 rounded-full bg-slate-800/60 border-2 border-slate-600/50 flex items-center justify-center touch-none"
+          className="absolute bottom-28 left-10 w-20 h-20 rounded-full bg-slate-700/90 border-4 border-slate-500 flex items-center justify-center touch-none shadow-xl"
           onTouchStart={(e) => {
             joystickActive.current = true;
             handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
@@ -3518,47 +3870,84 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           onMouseUp={handleJoystickEnd}
           onMouseLeave={handleJoystickEnd}
         >
+          {/* 方向指示器 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-1 h-1 bg-slate-500 rounded-full" />
+          </div>
+          {/* 北 */}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-b-3 border-l-transparent border-r-transparent border-b-slate-500 opacity-50" />
+          {/* 南 */}
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-3 border-l-transparent border-r-transparent border-t-slate-500 opacity-50" />
+          {/* 西 */}
+          <div className="absolute left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-t-2 border-b-2 border-r-3 border-t-transparent border-b-transparent border-r-slate-500 opacity-50" />
+          {/* 东 */}
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-0 h-0 border-t-2 border-b-2 border-l-3 border-t-transparent border-b-transparent border-l-slate-500 opacity-50" />
+          
+          {/* 可移动把手 */}
           <div
-            className="w-10 h-10 rounded-full bg-amber-500/80 border-2 border-amber-400 shadow-lg"
+            className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 border-3 border-amber-600 shadow-lg flex items-center justify-center"
             style={{
-              transform: `translate(${joystickRef.current.x * 20}px, ${joystickRef.current.y * 20}px)`,
-              transition: joystickActive.current ? 'none' : 'transform 0.1s',
+              transform: `translate(${joystickRef.current.x * 16}px, ${joystickRef.current.y * 16}px)`,
+              transition: joystickActive.current ? 'none' : 'transform 0.15s ease-out',
             }}
-          />
+          >
+            {/* 把手高光 */}
+            <div className="w-3 h-3 rounded-full bg-amber-200 opacity-60" />
+          </div>
         </div>
 
-        {/* 技能按钮 - P0-3: MP不足时显示红色边框闪烁 */}
-        <div className="absolute bottom-20 right-4 flex flex-col gap-2">
+        {/* ============================================================
+            GBA风格技能按钮 - 大尺寸+选中高亮+像素边框
+        ============================================================ */}
+        <div className="absolute bottom-24 right-4 flex flex-col gap-2">
           {PLAYER_SKILLS.map((skill, i) => {
             const mpInsufficient = skill.mpCost > player.mp;
+            const isSelected = selectedSkill?.id === skill.id;
             return (
               <button
                 key={skill.id}
                 onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill); useSkill(skill); }}
-                disabled={player.cooldown > 0 || mpInsufficient}
-                className={`relative w-16 h-16 rounded-xl flex flex-col items-center justify-center font-bold shadow-lg active:scale-95 transition-all text-white ${
-                  selectedSkill?.id === skill.id
-                    ? skill.element === 'fire' ? 'bg-orange-600 hover:bg-orange-500 border-2 border-yellow-400'
-                    : skill.element === 'electric' ? 'bg-yellow-600 hover:bg-yellow-500 border-2 border-yellow-300'
-                    : 'bg-red-600 hover:bg-red-500 border-2 border-yellow-300'
-                    : skill.element === 'fire' ? 'bg-orange-700 hover:bg-orange-600'
-                    : skill.element === 'electric' ? 'bg-yellow-700 hover:bg-yellow-600'
-                    : 'bg-red-700 hover:bg-red-600'
-                } disabled:bg-slate-700 disabled:border-0 ${mpInsufficient ? 'animate-mp-warn border-2 border-red-500' : ''}`}
+                disabled={player.cooldown > 0 && !mpInsufficient}
+                className={`
+                  relative w-14 h-14 rounded-lg flex flex-col items-center justify-center font-bold shadow-lg active:scale-95 transition-all text-white border-4
+                  ${isSelected 
+                    ? skill.element === 'fire' ? 'bg-orange-500 hover:bg-orange-400 border-yellow-400 ring-2 ring-yellow-300 ring-offset-1 ring-offset-transparent'
+                    : skill.element === 'electric' ? 'bg-yellow-500 hover:bg-yellow-400 border-yellow-300 ring-2 ring-yellow-200 ring-offset-1 ring-offset-transparent'
+                    : 'bg-red-500 hover:bg-red-400 border-yellow-300 ring-2 ring-yellow-200 ring-offset-1 ring-offset-transparent'
+                    : skill.element === 'fire' ? 'bg-orange-700 hover:bg-orange-600 border-orange-800'
+                    : skill.element === 'electric' ? 'bg-yellow-700 hover:bg-yellow-600 border-yellow-800'
+                    : 'bg-red-700 hover:bg-red-600 border-red-800'
+                  }
+                  disabled:bg-slate-700 disabled:border-slate-800 disabled:ring-0
+                  ${mpInsufficient && isSelected ? 'animate-pulse border-red-500 ring-2 ring-red-400' : ''}
+                `}
                 title={`${skill.name} (${skill.mpCost}MP) - ${skill.desc}`}
+                style={{ fontFamily: "'Courier New', monospace" }}
               >
+                {/* MP不足指示器 */}
                 {mpInsufficient && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
                 )}
-                <span className="text-base">{i === 0 ? '⚔️' : i === 1 ? '🔥' : '⚡'}</span>
-                <span className="text-[9px]">{skill.key}:{skill.name}</span>
-                {skill.mpCost > 0 && <span className="text-[8px] opacity-70">{skill.mpCost}MP</span>}
+                {/* 选中状态指示器 */}
+                {isSelected && (
+                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] bg-yellow-400 text-yellow-900 px-1 rounded-sm font-bold">选用</span>
+                )}
+                <span className="text-lg">{i === 0 ? '⚔️' : i === 1 ? '🔥' : '⚡'}</span>
+                <span className="text-[8px]">{skill.key}:{skill.name}</span>
+                {skill.mpCost > 0 && (
+                  <span className={`text-[7px] ${mpInsufficient ? 'text-red-300' : 'opacity-70'}`}>{skill.mpCost}MP</span>
+                )}
               </button>
             );
           })}
-          <button onClick={(e) => { e.stopPropagation(); dodge(); }}
-            className="w-16 h-16 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform">
-            <span className="text-xl">💨</span><span className="text-[10px]">空格</span>
+          {/* 闪避按钮 */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); dodge(); }}
+            className="w-14 h-14 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 border-4 border-cyan-800 rounded-lg flex flex-col items-center justify-center text-white font-bold shadow-lg active:scale-95 transition-transform"
+            style={{ fontFamily: "'Courier New', monospace" }}
+          >
+            <span className="text-lg">💨</span>
+            <span className="text-[8px]">闪避</span>
           </button>
         </div>
 
@@ -3847,7 +4236,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         )}
 
         {/* ============================================================
-            修复#1: 剧情与地图联动 - 对话气泡
+            GBA绿宝石风格对话气泡 - 高对比度+像素边框
         ============================================================ */}
         {dialogueBubbles.map(bubble => {
           const sx = (bubble.x - camera.x) * TILE_SIZE + TILE_SIZE / 2;
@@ -3863,12 +4252,12 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
                 transform: 'translateX(-50%)',
               }}
             >
-              <div className="bg-white rounded-lg px-3 py-2 shadow-lg max-w-[150px]">
+              <div className="bg-white rounded-sm border-4 border-l-4 border-r-4 border-blue-400 px-3 py-2 shadow-xl max-w-[160px]" style={{ fontFamily: "'Courier New', monospace" }}>
                 {bubble.speaker && (
-                  <div className="text-xs font-bold text-purple-600 mb-1">{bubble.speaker}</div>
+                  <div className="text-xs font-bold text-blue-800 mb-1 bg-blue-100 px-2 py-0.5 rounded-sm border border-blue-300">{bubble.speaker}</div>
                 )}
-                <div className="text-slate-800 text-sm">{bubble.text}</div>
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-white"></div>
+                <div className="text-blue-900 text-sm font-medium leading-tight">{bubble.text}</div>
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-6 border-r-6 border-t-6 border-l-transparent border-r-transparent border-t-white"></div>
               </div>
             </div>
           );
@@ -3910,41 +4299,41 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         )}
 
         {/* ============================================================
-            P0-1: 发牌员对话框面板
+            GBA绿宝石风格发牌员对话框面板 - 高对比度+像素边框
         ============================================================ */}
         {showDealerPanel && selectedDealer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowDealerPanel(false)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setShowDealerPanel(false)}>
             <div
-              className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl border border-amber-500/50 p-6 max-w-sm w-full mx-4 shadow-2xl"
+              className="bg-gradient-to-b from-blue-200 to-blue-100 rounded-xl border-4 border-l-4 border-r-4 border-blue-500 p-5 max-w-sm w-full mx-4 shadow-2xl"
               onClick={e => e.stopPropagation()}
+              style={{ fontFamily: "'Courier New', monospace" }}
             >
-              {/* 标题 */}
-              <div className="flex items-center gap-3 mb-4">
+              {/* GBA风格标题栏 */}
+              <div className="flex items-center gap-3 mb-4 bg-blue-500 text-white px-3 py-2 -mx-5 -mt-5 rounded-t-sm border-b-2 border-blue-700">
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
-                  style={{ backgroundColor: selectedDealer.color }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-white text-blue-800 border-2 border-blue-800"
                 >
                   {selectedDealer.icon}
                 </div>
-                <div>
-                  <h3 className="text-white font-bold">{selectedDealer.name}</h3>
-                  <p className="text-slate-400 text-xs">{DEALER_TYPE_NAMES[selectedDealer.type]}</p>
+                <div className="flex-1">
+                  <h3 className="text-blue-900 font-bold text-sm">{selectedDealer.name}</h3>
+                  <p className="text-blue-700 text-xs">{DEALER_TYPE_NAMES[selectedDealer.type]}</p>
                 </div>
                 <button
                   onClick={() => setShowDealerPanel(false)}
-                  className="ml-auto text-slate-400 hover:text-white text-2xl leading-none"
+                  className="text-blue-900 hover:text-blue-700 text-xl leading-none font-bold w-6 h-6 flex items-center justify-center bg-blue-300 rounded-sm border border-blue-500"
                 >×</button>
               </div>
 
-              {/* 对话内容 */}
-              <div className="space-y-2 mb-4">
+              {/* 对话内容 - 高对比度 */}
+              <div className="space-y-2 mb-4 bg-white/80 p-3 rounded-sm border-2 border-blue-400">
                 {getDealerDialogues(selectedDealer).map((line, i) => (
-                  <p key={i} className="text-slate-200 text-sm leading-relaxed">{line}</p>
+                  <p key={i} className="text-blue-900 text-sm leading-relaxed font-medium">{line}</p>
                 ))}
               </div>
 
-              {/* 交互按钮 */}
-              <div className="flex gap-2 mb-4">
+              {/* GBA风格交互按钮 */}
+              <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => {
                     // 给予玩家一张卡
@@ -3956,33 +4345,53 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
                     }
                     setShowDealerPanel(false);
                   }}
-                  className="flex-1 py-2 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-sm"
+                  className="flex-1 py-2 px-4 bg-yellow-300 hover:bg-yellow-200 text-blue-900 font-bold text-sm rounded-t-lg border-2 border-t-4 border-l-2 border-r-2 border-yellow-600 shadow-sm transition-colors"
                 >
                   交流
                 </button>
                 <button
                   onClick={() => setShowDealerPanel(false)}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
+                  className="px-4 py-2 bg-red-400 hover:bg-red-300 text-blue-900 font-bold text-sm rounded-t-lg border-2 border-t-2 border-l-2 border-r-2 border-red-600 shadow-sm transition-colors"
                 >
                   离开
                 </button>
               </div>
 
-              {/* P1-5: 多途径交付UI可见化 */}
+              {/* 存档按钮 */}
+              <button
+                onClick={() => {
+                  const data: SaveData = {
+                    x: player.x, y: player.y, hasSeenIntro: true,
+                    hp: player.hp, maxHp: player.maxHp, mp: player.mp, maxMp: player.maxMp,
+                    level: player.level, exp: player.exp, expToLevel: player.expToLevel,
+                    gold: player.gold, collectedCards, deckIndex,
+                    storyFlags, consecutiveDeaths: consecutiveDeathsRef.current,
+                    atk: player.atk, def: player.def, indoorMapId, outdoorPlayerPos,
+                    boardProgress: boardProgressRef.current,
+                  };
+                  saveGame(data);
+                  setAdaptiveBuffMessage('游戏已保存！');
+                  setTimeout(() => setAdaptiveBuffMessage(''), 2000);
+                }}
+                className="w-full py-2 bg-green-400 hover:bg-green-300 text-blue-900 font-bold text-sm rounded-t-lg border-2 border-t-4 border-l-2 border-r-2 border-green-600 shadow-sm transition-colors mb-3"
+              >
+                💾 保存进度
+              </button>
+
+              {/* P1-5: 多途径交付UI */}
               {(() => {
                 const cards = getCardsFromDealer(selectedDealer);
                 if (cards.length === 0) return null;
                 const sampleCard = cards[0];
                 const methods = getDeliveryMethods(sampleCard);
                 return (
-                  <div className="border-t border-slate-700 pt-4">
-                    <p className="text-xs text-slate-500 mb-2">选择交付方式：</p>
+                  <div className="border-t-2 border-blue-400 pt-3">
+                    <p className="text-blue-700 text-xs mb-2 font-bold">选择交付方式：</p>
                     <div className="flex flex-wrap gap-2">
                       {methods.map(m => (
                         <button
                           key={m.type}
                           onClick={() => {
-                            // 根据交付方式处理
                             if (m.type === 'DIALOGUE') {
                               showDialogueBubble(player.x, player.y - 20, `"${sampleCard.storyContent || '...'}"`, selectedDealer.name, 4000);
                             }
@@ -4003,12 +4412,60 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         )}
       </div>
 
-      {/* 底部提示 */}
-      <div className="h-10 bg-slate-900/90 border-t border-slate-700 flex items-center justify-center gap-8 text-slate-400 text-xs">
-        <span>🎮 WASD/方向键移动</span>
-        <span>⚔️ 1普攻 2火 3雷 空格闪避</span>
-        <span>🏰 城镇内无怪物</span>
-        <span>🃏 靠近发牌员按E</span>
+      {/* ============================================================
+          GBA绿宝石风格底部菜单 - 4格经典布局+像素边框
+      ============================================================ */}
+      <div className="h-12 bg-gradient-to-r from-blue-300 to-blue-200 border-t-4 border-l-4 border-r-4 border-blue-400 flex items-center justify-center gap-3 px-4 z-10" style={{ fontFamily: "'Courier New', monospace" }}>
+        {/* 背包 */}
+        <button 
+          onClick={() => {
+            // 背包功能：显示当前收集的卡牌
+            setShowCardGame(true);
+          }}
+          className="px-4 py-1.5 bg-yellow-300 hover:bg-yellow-200 border-2 border-t-4 border-l-4 border-r-4 border-yellow-600 text-blue-900 font-bold text-sm rounded-t-lg shadow-md transition-colors active:scale-95"
+        >
+          🎒 背包
+        </button>
+        {/* 精灵 */}
+        <button className="px-4 py-1.5 bg-green-300 hover:bg-green-200 border-2 border-t-4 border-l-4 border-r-4 border-green-600 text-blue-900 font-bold text-sm rounded-t-lg shadow-md transition-colors active:scale-95">
+          ⚔️ 精灵
+        </button>
+        {/* 设置 */}
+        <button className="px-4 py-1.5 bg-slate-200 hover:bg-slate-100 border-2 border-t-4 border-l-4 border-r-4 border-slate-500 text-blue-900 font-bold text-sm rounded-t-lg shadow-md transition-colors active:scale-95">
+          ⚙️ 设置
+        </button>
+        {/* 退出 */}
+        <button 
+          onClick={() => {
+            if (confirm('确定要退出游戏吗？当前进度会自动保存。')) {
+              const data: SaveData = {
+                x: player.x, y: player.y, hasSeenIntro: true,
+                hp: player.hp, maxHp: player.maxHp, mp: player.mp, maxMp: player.maxMp,
+                level: player.level, exp: player.exp, expToLevel: player.expToLevel,
+                gold: player.gold, collectedCards, deckIndex,
+                storyFlags, consecutiveDeaths: consecutiveDeathsRef.current,
+                atk: player.atk, def: player.def, indoorMapId, outdoorPlayerPos,
+                boardProgress: boardProgressRef.current,
+              };
+              saveGame(data);
+              window.location.reload();
+            }
+          }}
+          className="px-4 py-1.5 bg-red-300 hover:bg-red-200 border-2 border-t-4 border-l-4 border-r-4 border-red-600 text-blue-900 font-bold text-sm rounded-t-lg shadow-md transition-colors active:scale-95"
+        >
+          🚪 退出
+        </button>
+        
+        {/* 右侧操作提示 */}
+        <div className="ml-4 flex items-center gap-3 text-blue-800 text-xs">
+          <span>WASD移动</span>
+          <span className="text-blue-600">|</span>
+          <span>1/2/3技能</span>
+          <span className="text-blue-600">|</span>
+          <span>空格闪避</span>
+          <span className="text-blue-600">|</span>
+          <span>E交互</span>
+        </div>
       </div>
     </div>
   );

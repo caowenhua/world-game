@@ -20,10 +20,10 @@ const PORYMAP_COLORS = {
   w_light: '#8a8aaa',
   w_accent: '#aaaacc',
   // Water palette
-  w_dark: '#2a6a9a',
-  w_base: '#4a8aba',
-  w_light: '#6aaada',
-  w_accent: '#9acaee',
+  w2_dark: '#2a6a9a',
+  w2_base: '#4a8aba',
+  w2_light: '#6aaada',
+  w2_accent: '#9acaee',
 };
 
 // Pokemon-style grass tile pixel data (16x16)
@@ -71,11 +71,13 @@ const PATH_PIXELS = [
 // Each sprite defined as: color string for each of 256 pixels (16x16), row by row
 // Using standard Pokemon GBC-ish color palette
 
-function createPixelSprite(rows: number[][]): (ctx: CanvasRenderingContext2D, sx: number, sy: number, scale?: number) => void {
+function createPixelSprite(rows: [number, number][][]): (ctx: CanvasRenderingContext2D, sx: number, sy: number, scale?: number) => void {
   return (ctx, sx, sy, scale = 1) => {
     for (let y = 0; y < rows.length; y++) {
       let x = 0;
-      for (const [colorIdx, runLen] of rows[y]) {
+      for (const pair of rows[y]) {
+        const colorIdx = pair[0];
+        const runLen = pair[1];
         ctx.fillStyle = ['#1a2a1a', '#2d6a2d', '#4a8a4a', '#6ab86a'][colorIdx] || '#000';
         ctx.fillRect(sx + x * scale, sy + y * scale, runLen * scale, scale);
         x += runLen;
