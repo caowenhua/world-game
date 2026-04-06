@@ -3308,8 +3308,8 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   // 发牌员界面 - 卡组系统隐藏在游戏表层之下，按E触发剧情对话
   // （已移除卡牌收藏UI，发牌员直接触发事件）
 
-  // 卡组查看弹窗（顶部按钮触发）
-  if (showCardGame) {
+  // 卡组查看弹窗 - 提取为函数避免hooks违规
+  const renderCardGameModal = () => {
     const nextCard = cardRewards.length > 0 ? cardRewards[0] : (collectedCards.length < ALL_EVENT_CARDS.length ? ALL_EVENT_CARDS.find(c => !collectedCards.some(x => x.id === c.id)) : null);
     const upcomingCards = collectedCards.slice(0, 5);
     return (
@@ -3319,8 +3319,6 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
             <h2 className="text-2xl font-bold text-purple-400">🃏 事件卡组</h2>
             <button onClick={() => setShowCardGame(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
           </div>
-
-          {/* 下一张卡 */}
           {nextCard ? (
             <div className="mb-4">
               <div className="text-xs text-slate-500 mb-2">🎯 下一张（待触发）</div>
@@ -3337,8 +3335,6 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           ) : (
             <div className="mb-4 p-4 bg-slate-800 rounded-xl text-center text-slate-500">🎉 所有卡牌已收集！</div>
           )}
-
-          {/* 已收集的卡（预览5张） */}
           {upcomingCards.length > 0 && (
             <div>
               <div className="text-xs text-slate-500 mb-2">📋 已收集 {collectedCards.length}/{ALL_EVENT_CARDS.length} 张</div>
@@ -3352,12 +3348,11 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
               </div>
             </div>
           )}
-
-          <button onClick={() => setShowCardGame(false)} className="w-full mt-4 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold">返回游戏</button>
+          <button onClick={() => setShowCardGame(false)} className="w-full mt-4 py-3 bg-purple-600 hover:bg-purple-600 text-white rounded-xl font-bold">返回游戏</button>
         </div>
       </div>
     );
-  }
+  };
 
   // ===================== 游戏主界面 =====================
   // BGM和音效
@@ -3379,6 +3374,8 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
+      {/* 卡组弹窗（条件渲染，hooks规则修复） */}
+      {showCardGame && renderCardGameModal()}
       {/* 顶部状态栏 */}
       <div className="h-14 bg-slate-900/90 border-b border-slate-700 flex items-center px-4 gap-6 z-10">
         <div className="flex items-center gap-2"><span className="text-yellow-400">👤</span><span className="text-white font-bold">{player.level}级</span></div>
