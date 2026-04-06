@@ -1899,7 +1899,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   const [dimensions, setDimensions] = useState({ width: 800, height: 480 });
   
   // 尝试从存档加载
-  const savedData = useRef(loadGame());
+  const savedData = useRef(typeof window !== 'undefined' ? loadGame() : null);
   const hasLoadedSave = useRef(false);
   
   // 初始化：看过剧情就不再展示，或从存档加载
@@ -3188,8 +3188,8 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     });
   }, [player, camera, monsters, damages, gameState, animFrame, storyFlags]);
 
-  // ===================== 剧情界面 =====================
-  if (gameState === 'story') {
+  // ===================== 剧情界面（条件渲染，避免hooks违规） =====================
+  const renderStoryOverlay = () => {
     const cur = STORY_LINES[storyIdx];
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
@@ -3197,10 +3197,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           onClick={async () => {
             if (character?.id) {
               try {
-                await characterSave.save(character.id, {
-                  x: player.x, y: player.y,
-                  hasSeenIntro: true,
-                });
+                await characterSave.save(character.id, { x: player.x, y: player.y, hasSeenIntro: true });
               } catch(e) { /* ignore */ }
             }
             setGameState('playing');
@@ -3229,14 +3226,10 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
             if (storyIdx < STORY_LINES.length - 1) {
               setStoryIdx(storyIdx + 1);
             } else {
-              // 完成剧情，保存状态
               if (character?.id) {
                 try {
-                  await characterSave.save(character.id, {
-                    x: player.x, y: player.y,
-                    hasSeenIntro: true,
-                  });
-                } catch(e) { /* ignore save error */ }
+                  await characterSave.save(character.id, { x: player.x, y: player.y, hasSeenIntro: true });
+                } catch(e) { /* ignore */ }
               }
               setGameState('playing');
             }
@@ -3247,10 +3240,10 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         </div>
       </div>
     );
-  }
+  };
 
   // 游戏结束
-  if (gameState === 'gameover') {
+  const renderGameoverOverlay = () => {
     return (
       <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center">
         <h1 className="text-4xl font-bold text-red-500 mb-4">💀 游戏结束</h1>
@@ -3267,10 +3260,11 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           className="px-8 py-3 bg-amber-600 text-white rounded-xl font-bold">重新开始</button>
       </div>
     );
-  }
+  };
 
   // 事件卡奖励弹窗
-  if (showRewards && cardRewards.length > 0) {
+  const renderRewardsOverlay = () => {
+    if (!showRewards || cardRewards.length === 0) return null;
     const card = cardRewards[0];
     const rarityColor = RARITY_COLORS[card.rarity];
     return (
@@ -3280,9 +3274,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
           <h2 className="text-xl font-bold text-yellow-400 mb-2">获得事件卡！</h2>
           <div style={{ borderColor: rarityColor, borderWidth: 2, borderRadius: 12, padding: 16, background: '#1a1a2e', marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 20 }}>
-                {CARD_TYPE_ICONS[card.type]}
-              </span>
+              <span style={{ fontSize: 20 }}>{CARD_TYPE_ICONS[card.type]}</span>
               <span style={{ color: rarityColor, fontSize: 16 }}>{RARITY_NAMES[card.rarity]}</span>
             </div>
             <div style={{ color: 'white', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{card.name}</div>
@@ -3303,7 +3295,7 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
         </div>
       </div>
     );
-  }
+  };
 
   // 发牌员界面 - 卡组系统隐藏在游戏表层之下，按E触发剧情对话
   // （已移除卡牌收藏UI，发牌员直接触发事件）
@@ -3374,7 +3366,10 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
-      {/* 卡组弹窗（条件渲染，hooks规则修复） */}
+      {/* 所有覆盖层 - 条件渲染，避免hooks违规 */}
+      {gameState === 'story' && renderStoryOverlay()}
+      {gameState === 'gameover' && renderGameoverOverlay()}
+      {showRewards && cardRewards.length > 0 && renderRewardsOverlay()}
       {showCardGame && renderCardGameModal()}
       {/* 顶部状态栏 */}
       <div className="h-14 bg-slate-900/90 border-b border-slate-700 flex items-center px-4 gap-6 z-10">
