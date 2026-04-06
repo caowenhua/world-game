@@ -3188,8 +3188,27 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     });
   }, [player, camera, monsters, damages, gameState, animFrame, storyFlags]);
 
-  // ===================== 剧情界面（条件渲染，避免hooks违规） =====================
+
+  // BGM和音效（必须在所有条件返回之前声明）
+  useEffect(() => {
+    if (gameState === 'playing') {
+      resumeAudio();
+      startBGM(0.04);
+    }
+    return () => { stopBGM(); resumeAudio(); };
+  }, [gameState]);
+
+  // 升级音效
+  useEffect(() => {
+    if (player.level > 1 && player.exp < player.expToLevel) {
+      // 刚升级
+      playLevelUpSound();
+    }
+  }, [player.level]);
+
+  // ===================== 剧情界面 =====================
   const renderStoryOverlay = () => {
+    if (gameState !== 'story') return null;
     const cur = STORY_LINES[storyIdx];
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
@@ -3346,27 +3365,9 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
     );
   };
 
-  // ===================== 游戏主界面 =====================
-  // BGM和音效
-  useEffect(() => {
-    if (gameState === 'playing') {
-      resumeAudio();
-      startBGM(0.04);
-    }
-    return () => { stopBGM(); resumeAudio(); };
-  }, [gameState]);
-
-  // 升级音效
-  useEffect(() => {
-    if (player.level > 1 && player.exp < player.expToLevel) {
-      // 刚升级
-      playLevelUpSound();
-    }
-  }, [player.level]);
-
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
-      {/* 所有覆盖层 - 条件渲染，避免hooks违规 */}
+      {/* 条件覆盖层 */}
       {gameState === 'story' && renderStoryOverlay()}
       {gameState === 'gameover' && renderGameoverOverlay()}
       {showRewards && cardRewards.length > 0 && renderRewardsOverlay()}
