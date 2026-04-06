@@ -211,3 +211,20 @@
   animation: collect-float 0.8s ease-out forwards;
 }
 
+/* P2-1: MOOD卡氛围淡出动画 */
+@keyframes moodFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* P0-3: MP不足时技能按钮红色边框闪烁 */
+@keyframes mp-warn {
+  0%, 100% { border-color: #ef4444; }
+  50% { border-color: transparent; }
+}
+.animate-mp-warn {
+  animation: mp-warn 0.5s infinite;
+}
+
