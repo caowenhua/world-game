@@ -3439,7 +3439,16 @@ export default function ImprovedRPG({ character }: { character?: Character }) {
   }, [player, camera, monsters, damages, gameState, animFrame, storyFlags]);
 
 
-  // BGM和音效（必须在所有条件返回之前声明）
+  // 存档恢复（必须在条件返回之前）
+  useEffect(() => {
+    // 如果已有存档，跳过剧情直接进入游戏
+    const saved = loadGame();
+    if (saved && saved.hasSeenIntro) {
+      setGameState('playing');
+    }
+  }, []);
+
+  // BGM和音效
   useEffect(() => {
     if (gameState === 'playing') {
       resumeAudio();
